@@ -56,7 +56,7 @@ public sealed class Iso8583Generator : IIncrementalGenerator
                     if (na is null)
                         continue;
 
-                    string nestedName = $"{prop.Name}.{nestedProp.Name}";
+                    string nestedName = nestedProp.Name;
                     var nestedFieldModel = GetIsoFieldModel(na, nestedName, nestedProp.Type);
                     fieldModel.NestedFields.Add(nestedFieldModel);
                 }
@@ -127,7 +127,7 @@ public sealed class Iso8583Generator : IIncrementalGenerator
                           .Replace("{ParentNumber}", f.Number.ToString())
                           .Replace("{Number}", nf.Number.ToString())
                           .Replace("{Comment}", nf.ToSummary())
-                          .Replace("{Prop}", nf.PropertyName)
+                          .Replace("{Prop}", $"{f.PropertyName}.{nf.PropertyName}")
                           .Replace("{Format}", nf.Format)
                           .Replace("{Length}", nf.Length.ToString())
                     );
@@ -179,37 +179,22 @@ public sealed class Iso8583Generator : IIncrementalGenerator
         {
             if (f.IsNested)
             {
-                // 1) Header для composite DExx
                 sb.AppendLine(
                     Iso8583CodeTemplates.ParseNestedHeader
                         .Replace("{Number}", f.Number.ToString())
                         .Replace("{PropClass}", f.PropertyType)
                 );
 
-                // 2) Вложенные поля
                 foreach (var nf in f.NestedFields.OrderBy(n => n.Number))
                 {
-                    // определяем readMethod (или null)
                     string? readMethodNested = GetReadMethod(nf.PropertyType);
-
-                    // выбираем шаблон: поддерживаемый или «unsupported»
-                    var tplNested = readMethodNested is null
-                        ? Iso8583CodeTemplates.ParseUnsupportedNestedField
-                        : Iso8583CodeTemplates.ParseNestedField;
-
+                    string nestedTarget = $"nested{f.Number}";
                     sb.AppendLine(
-                        tplNested
-                            .Replace("{ParentNumber}", f.Number.ToString())
-                            .Replace("{FieldNumber}", nf.Number.ToString())
-                            .Replace("{Type}", nf.PropertyType)
-                            .Replace("{InnerProp}", nf.PropertyName.Split('.').Last())
-                            .Replace("{ReadMethod}", readMethodNested ?? "")
-                            .Replace("{Format}", nf.Format)
-                            .Replace("{Length}", nf.Length.ToString())
+                        GenerateParseField(nf.Number, nf.PropertyName, nestedTarget,
+                            readMethodNested, nf.Format, nf.Length, nf.PropertyType)
                     );
                 }
 
-                // 3) Footer для composite
                 sb.AppendLine(
                     Iso8583CodeTemplates.ParseNestedFooter
                         .Replace("{ParentNumber}", f.Number.ToString())
@@ -219,27 +204,33 @@ public sealed class Iso8583Generator : IIncrementalGenerator
             }
             else
             {
-                // 4) Простое поле
                 string? readMethod = GetReadMethod(f.PropertyType);
-
-                var tplSimple = readMethod is null
-                    ? Iso8583CodeTemplates.ParseUnsupportedSimpleField
-                    : Iso8583CodeTemplates.ParseSimpleField;
-
                 sb.AppendLine(
-                    tplSimple
-                        .Replace("{Number}", f.Number.ToString())
-                        .Replace("{Type}", f.PropertyType)
-                        .Replace("{Prop}", f.PropertyName)
-                        .Replace("{ReadMethod}", readMethod ?? "")
-                        .Replace("{Format}", f.Format)
-                        .Replace("{Length}", f.Length.ToString())
+                    GenerateParseField(f.Number, f.PropertyName, "response",
+                        readMethod, f.Format, f.Length, f.PropertyType)
                 );
             }
         }
 
         sb.Append(Iso8583CodeTemplates.ParseFooter);
         return sb.ToString();
+    }
+
+    private static string GenerateParseField(int number, string prop, string target,
+        string? readMethod, string format, int length, string type)
+    {
+        var tpl = readMethod is null
+            ? Iso8583CodeTemplates.ParseUnsupportedField
+            : Iso8583CodeTemplates.ParseField;
+
+        return tpl
+            .Replace("{Number}", number.ToString())
+            .Replace("{Prop}", prop)
+            .Replace("{Target}", target)
+            .Replace("{ReadMethod}", readMethod ?? "")
+            .Replace("{Format}", format)
+            .Replace("{Length}", length.ToString())
+            .Replace("{Type}", type);
     }
 
     private static string? GetReadMethod(string propertyType) => propertyType.ToLower() switch

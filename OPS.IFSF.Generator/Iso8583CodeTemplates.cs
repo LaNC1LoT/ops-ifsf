@@ -123,10 +123,10 @@ internal static class Iso8583CodeTemplates
     """;
 
     // Простой DE
-    public const string ParseSimpleField = """
-                            case {Number}: // DE{Number}
-                                response.{Prop} = writer.Read{ReadMethod}({Format}, {Length});
-                                break;
+    public const string ParseField = """
+    case {Number}: // DE{Number}
+        {Target}.{Prop} = writer.Read{ReadMethod}({Format}, {Length});
+        break;
     """;
 
     // Начало composite DExx
@@ -145,13 +145,6 @@ internal static class Iso8583CodeTemplates
                                     {
                                         switch (bitIndex + 1)
                                         {
-    """;
-
-    // Вложенное поле composite
-    public const string ParseNestedField = """
-                                            case {FieldNumber}: 
-                                                nested{ParentNumber}.{InnerProp} = writer.Read{ReadMethod}({Format}, {Length});
-                                                break;
     """;
 
     // Конец composite DExx
@@ -181,15 +174,9 @@ internal static class Iso8583CodeTemplates
 
 
     // 2b) Неподдерживаемый простой DE
-    public const string ParseUnsupportedSimpleField = """
-        case {Number}: // DE{Number}
-            throw new NotSupportedException("Unsupported type '{Type}' for DE{Number}");
-    """;
-
-    // 3b) Неподдерживаемый nested DE
-    public const string ParseUnsupportedNestedField = """
-        case {FieldNumber}: 
-            throw new NotSupportedException("Unsupported nested type '{Type}' for DE{ParentNumber}");
+    public const string ParseUnsupportedField = """
+    case {Number}: // DE{Number}
+        throw new NotSupportedException("Unsupported field: DE{Number} → property '{Prop}' (type: {Type})");
     """;
 
     #endregion
