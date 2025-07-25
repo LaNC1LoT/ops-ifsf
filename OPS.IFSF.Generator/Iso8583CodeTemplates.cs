@@ -42,10 +42,10 @@ internal static class Iso8583CodeTemplates
 
     // Шаблон для nullable-поля
     public const string WriteNullableField = """
-                if ({Prop}.HasValue)
+                if ({Prop}{Cond})
                 {
                     // {Comment}
-                    writer.Write({Prop}.Value, {Format}, {Length});
+                    writer.Write({Prop}{Value}, {Format}, {Length});
                     AsciiHelper.SetBitMap({Number}, bitMapSpan);
                 }
         """;
@@ -68,10 +68,10 @@ internal static class Iso8583CodeTemplates
 
     // 2b) Фрагмент nullable вложенного поля
     public const string WriteNestedNullableField = """
-            if ({Prop}.HasValue)
+            if ({Prop}{Cond})
             {
                 // {Comment}
-                writer.Write({Prop}.Value, {Format}, {Length});
+                writer.Write({Prop}{Value}, {Format}, {Length});
                 AsciiHelper.SetBitMap({Number}, bitMapDE{ParentNumber});
             }
     """;

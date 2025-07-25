@@ -89,7 +89,7 @@ public sealed class Iso8583Generator : IIncrementalGenerator
             _ => typeSymbol.Name
         };
         var formatFull = $"{enumValue.Type!.ToDisplayString()}.{formatName}";
-        return new IsoFieldModel(number, propName, formatFull, length, underlyingType, isNullable);
+        return new IsoFieldModel(number, propName, formatFull, length, underlyingType, isNullable, typeSymbol.IsReferenceType);
     }
 
     #region Writer
@@ -116,12 +116,14 @@ public sealed class Iso8583Generator : IIncrementalGenerator
                 // 2. Вложенные поля
                 foreach (var nf in f.NestedFields.OrderBy(n => n.Number))
                 {
-                    var tpl = (nf.IsNullable && nf.PropertyType != "String")
+                    var tpl = nf.IsNullable
                         ? Iso8583CodeTemplates.WriteNestedNullableField
                         : Iso8583CodeTemplates.WriteNestedField;
 
                     sb.AppendLine(
                         tpl
+                          .Replace("{Cond}", nf.IsReferenceType ? " != null" : ".HasValue")
+                          .Replace("{Value}", nf.IsReferenceType ? string.Empty : ".Value")
                           .Replace("{ParentNumber}", f.Number.ToString())
                           .Replace("{Number}", nf.Number.ToString())
                           .Replace("{Comment}", nf.ToSummary())
@@ -140,12 +142,14 @@ public sealed class Iso8583Generator : IIncrementalGenerator
             else
             {
                 // обычное поле
-                var tpl = (f.IsNullable && f.PropertyType != "String")
+                var tpl = f.IsNullable
                     ? Iso8583CodeTemplates.WriteNullableField
                     : Iso8583CodeTemplates.WriteSimpleField;
 
                 sb.AppendLine(
                     tpl
+                      .Replace("{Cond}", f.IsReferenceType ? " != null" : ".HasValue")
+                      .Replace("{Value}", f.IsReferenceType ? string.Empty : ".Value")
                       .Replace("{Comment}", f.ToSummary())
                       .Replace("{Prop}", f.PropertyName)
                       .Replace("{Format}", f.Format)

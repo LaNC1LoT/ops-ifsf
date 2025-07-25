@@ -81,7 +81,7 @@ public sealed partial class PurchaseResponse
     /// <summary>
     /// DE42 — Card acceptor identification code, char(15), OE
     /// </summary>
-    //[IsoField(42, IsoFieldFormat.CharPad, 15)]
+    [IsoField(42, IsoFieldFormat.CharPad, 15)]
     public string? CardAcceptorIdCode { get; set; }
 
     /// <summary>
@@ -99,7 +99,7 @@ public sealed partial class PurchaseResponse
     /// <summary>
     /// DE59 — Transport Data, LLLVAR ..999, OE
     /// </summary>
-    //[IsoField(59, IsoFieldFormat.LLLVar, 999)]
+    [IsoField(59, IsoFieldFormat.LLLVar, 999)]
     public string? TransportData { get; set; }
 }
 

@@ -279,14 +279,12 @@ public class ChunkedPooledBufferWriterTests
             ApprovalCode = "580093",                                        // DE38
             ActionCode = 0,                                                 // DE39
             TerminalId = "24001",                                           // DE41
-            /// TODO: подумать об скипе nullble string (сейчас просто закоментил атрибут)
             CardAcceptorIdCode = null,                                      // DE42
             Field48 = new De48PurchaseResponse                              // DE48
             {
                 BatchSequenceNumber = 123456                                // DE48‑4
             },
             CurrencyCode = "643",                                           // DE49
-            /// TODO: подумать об скипе nullble string (сейчас просто закоментил атрибут)
             TransportData = null                                            // DE59
         };
 
