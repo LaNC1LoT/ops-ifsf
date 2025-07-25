@@ -76,20 +76,13 @@ public sealed class Iso8583Generator : IIncrementalGenerator
         var number = (int)attribute.ConstructorArguments[0].Value!;
         var enumValue = attribute.ConstructorArguments[1];
         var formatName = enumValue.Type!
-                            .GetMembers()
-                            .OfType<IFieldSymbol>()
-                            .FirstOrDefault(f => f.HasConstantValue && Equals(f.ConstantValue, enumValue.Value))?
-                            .Name!;
+            .GetMembers()
+            .OfType<IFieldSymbol>()
+            .FirstOrDefault(f => f.HasConstantValue && Equals(f.ConstantValue, enumValue.Value))?
+            .Name!;
         var length = (int)attribute.ConstructorArguments[2].Value!;
-        var isNullable = typeSymbol.NullableAnnotation == NullableAnnotation.Annotated;
-        var underlyingType = typeSymbol switch
-        {
-            IArrayTypeSymbol arr when arr.ElementType.SpecialType == SpecialType.System_Byte => arr.ToDisplayString(),
-            INamedTypeSymbol named when isNullable && named.IsGenericType => named.TypeArguments[0].Name,
-            _ => typeSymbol.Name
-        };
         var formatFull = $"{enumValue.Type!.ToDisplayString()}.{formatName}";
-        return new IsoFieldModel(number, propName, formatFull, length, underlyingType, isNullable, typeSymbol.IsReferenceType);
+        return new IsoFieldModel(number, propName, formatFull, length, typeSymbol);
     }
 
     #region Writer
@@ -125,7 +118,7 @@ public sealed class Iso8583Generator : IIncrementalGenerator
                     nestedWrites.Add(fieldCode);
                 }
 
-                sbNested.AppendLine(Iso8583CodeTemplatesWrite.WriteNestedMethod(f.Number, f.PropertyType, nestedWrites));
+                sbNested.AppendLine(Iso8583CodeTemplatesWrite.WriteNestedMethod(f.Number, f.PropertyTypeDisplay, nestedWrites));
             }
             else
             {
@@ -167,20 +160,20 @@ public sealed class Iso8583Generator : IIncrementalGenerator
                 var nestedSwitches = new List<string>();
                 foreach (var nf in f.NestedFields.OrderBy(n => n.Number))
                 {
-                    var readMethod = GetReadMethod(nf.PropertyType);
+                    var readMethod = GetReadMethod(nf.PropertyTypeDisplay);
                     string nestedLine = readMethod is null
-                        ? Iso8583CodeTemplatesParse.ParseUnsupportedField(nf.Number, nf.PropertyName, nf.PropertyType)
+                        ? Iso8583CodeTemplatesParse.ParseUnsupportedField(nf.Number, nf.PropertyName, nf.PropertyTypeDisplay)
                         : Iso8583CodeTemplatesParse.ParseField(nf.Number, nf.PropertyName, "nested", readMethod, nf.Format, nf.Length);
                     nestedSwitches.Add(nestedLine);
                 }
 
-                sbNested.AppendLine(Iso8583CodeTemplatesParse.ParseNestedMethod(f.Number, f.PropertyType, nestedSwitches));
+                sbNested.AppendLine(Iso8583CodeTemplatesParse.ParseNestedMethod(f.Number, f.PropertyTypeDisplay, nestedSwitches));
             }
             else
             {
-                var readMethod = GetReadMethod(f.PropertyType);
+                var readMethod = GetReadMethod(f.PropertyTypeDisplay);
                 string line = readMethod is null
-                    ? Iso8583CodeTemplatesParse.ParseUnsupportedField(f.Number, f.PropertyName, f.PropertyType)
+                    ? Iso8583CodeTemplatesParse.ParseUnsupportedField(f.Number, f.PropertyName, f.PropertyTypeDisplay)
                     : Iso8583CodeTemplatesParse.ParseField(f.Number, f.PropertyName, "response", readMethod, f.Format, f.Length);
                 sbMain.AppendLine(line);
             }
