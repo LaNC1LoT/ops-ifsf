@@ -10,6 +10,8 @@ public sealed class Iso8583Generator : IIncrementalGenerator
 {
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
+        // TODO: раскоментировать если хочется подебажить генератор
+        //System.Diagnostics.Debugger.Launch();
         var messages = context.SyntaxProvider
             .ForAttributeWithMetadataName(
                 "OPS.IFSF.Abstractions.Attributes.IsoMessageAttribute",
@@ -80,9 +82,12 @@ public sealed class Iso8583Generator : IIncrementalGenerator
                             .Name!;
         var length = (int)attribute.ConstructorArguments[2].Value!;
         var isNullable = typeSymbol.NullableAnnotation == NullableAnnotation.Annotated;
-        var underlyingType = isNullable && typeSymbol is INamedTypeSymbol named && named.IsGenericType
-            ? named.TypeArguments[0].Name
-            : typeSymbol.Name;
+        var underlyingType = typeSymbol switch
+        {
+            IArrayTypeSymbol arr when arr.ElementType.SpecialType == SpecialType.System_Byte => arr.ToDisplayString(),
+            INamedTypeSymbol named when isNullable && named.IsGenericType => named.TypeArguments[0].Name,
+            _ => typeSymbol.Name
+        };
         var formatFull = $"{enumValue.Type!.ToDisplayString()}.{formatName}";
         return new IsoFieldModel(number, propName, formatFull, length, underlyingType, isNullable);
     }
@@ -233,13 +238,13 @@ public sealed class Iso8583Generator : IIncrementalGenerator
         return sb.ToString();
     }
 
-    private static string? GetReadMethod(string propertyType) => propertyType switch
+    private static string? GetReadMethod(string propertyType) => propertyType.ToLower() switch
     {
-        "DateTime" => "DateTime",
-        "String" => "String",
-        "Int32" => "Int",
-        "Int64" => "Long",
-        "Decimal" => "Decimal",
+        "datetime" => "DateTime",
+        "string" => "String",
+        "int32" => "Int",
+        "int64" => "Long",
+        "decimal" => "Decimal",
         "byte[]" => "Array",
         _ => null
     };

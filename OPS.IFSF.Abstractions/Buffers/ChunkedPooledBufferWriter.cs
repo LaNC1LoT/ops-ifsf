@@ -21,7 +21,7 @@ public sealed class ChunkedPooledBufferWriter : IDisposable
 
         public void Return()
         {
-            ArrayPool<byte>.Shared.Return(Buffer);
+            ArrayPool<byte>.Shared.Return(Buffer, true);
             Buffer = null!;
         }
     }
@@ -590,10 +590,15 @@ public sealed class ChunkedPooledBufferWriter : IDisposable
         return new DateTime(year, month, day, hour, minute, second);
     }
 
-    public Span<byte> ReadArray(IsoFieldFormat format, int maxLength)
+    public byte[] ReadArray(IsoFieldFormat format, int maxLength)
     {
-        if (format != IsoFieldFormat.Byte)
+        if (format != IsoFieldFormat.Byte && format != IsoFieldFormat.LLVar)
             throw new FormatException("Unsupported format");
+
+        if (format == IsoFieldFormat.LLVar)
+        {
+            maxLength = ReadInt(IsoFieldFormat.NumPad, 2);
+        }
 
         ValidateRead(maxLength);
 
@@ -605,7 +610,7 @@ public sealed class ChunkedPooledBufferWriter : IDisposable
         {
             var span = _readChunk.Buffer.AsSpan(_readOffset, maxLength);
             _readOffset += maxLength;
-            return span;
+            return span.ToArray();
         }
 
         throw new NotSupportedException("Cannot return span across chunk boundaries");

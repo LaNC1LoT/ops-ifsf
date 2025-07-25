@@ -181,9 +181,6 @@ public class ChunkedPooledBufferWriterTests
         Assert.Equal(expected, actual);
     }
 
-    /// <summary>
-    /// Этот тест падает потому что нет реализации парса byte[] DE52, DE53
-    /// </summary>
     [Fact]
     public void PurchaseRequest_Parse_Test()
     {
@@ -257,13 +254,10 @@ public class ChunkedPooledBufferWriterTests
         Assert.Equal(expected, actual);
     }
 
-    /// <summary>
-    /// Тест красный, что-то не так серелизуется
-    /// </summary>
     [Fact]
     public void PurchaseResponse_WriteTo_Test()
     {
-        byte[] expected = [48, 49, 49, 51, 49, 50, 49, 48, 50, 48, 0, 1, 14, 129, 128, 0, 48, 48, 48, 48, 
+        byte[] expected = [48, 49, 49, 57, 49, 50, 49, 48, 50, 48, 0, 1, 14, 129, 128, 0, 48, 48, 48, 48, 
             48, 48, 48, 48, 48, 48, 48, 48, 48, 52, 49, 51, 53, 55, 48, 55, 50, 51, 
             50, 50, 49, 51, 48, 48, 48, 48, 48, 48, 50, 50, 50, 53, 48, 55, 50, 51, 
             50, 50, 49, 51, 48, 48, 48, 54, 50, 56, 48, 49, 51, 49, 48, 48, 48, 48, 

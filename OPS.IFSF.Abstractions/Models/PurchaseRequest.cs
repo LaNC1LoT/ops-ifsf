@@ -114,7 +114,7 @@ public sealed partial class PurchaseRequest
     /// DE53 — Security Related Control Information, LLVAR ..48, M
     /// </summary>
     [IsoField(53, IsoFieldFormat.LLVar, 48)]
-    public byte[] SecurityControlInfo { get; set; } = default!;
+    public byte[] SecurityControlInfo { get; set; } 
 
     /// <summary>
     /// DE59 — Transport Data, LLLVAR ..999, O
