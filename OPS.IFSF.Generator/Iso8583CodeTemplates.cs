@@ -21,7 +21,7 @@ internal static class Iso8583CodeTemplates
                 var lenSpan = writer.GetSpan(4);
                 var messageId = {MessageId};
                 writer.Write(messageId, IsoFieldFormat.NumPad, 4);
-                var bitMapSpan = writer.GetSpan(8);
+                var bitMapDE0 = writer.GetSpan(8);
 
         """;
 
@@ -34,11 +34,7 @@ internal static class Iso8583CodeTemplates
         """;
 
     // Шаблон для простого поля
-    public const string WriteSimpleField = """
-                // {Comment}
-                writer.Write({Prop}, {Format}, {Length});
-                AsciiHelper.SetBitMap({Number}, bitMapSpan);
-        """;
+
 
     // Шаблон для nullable-поля
     public const string WriteNullableField = """
@@ -46,7 +42,7 @@ internal static class Iso8583CodeTemplates
                 {
                     // {Comment}
                     writer.Write({Prop}{Value}, {Format}, {Length});
-                    AsciiHelper.SetBitMap({Number}, bitMapSpan);
+                    AsciiHelper.SetBitMap({Number}, bitMapDE{ParentNumber});
                 }
         """;
 
@@ -60,27 +56,17 @@ internal static class Iso8583CodeTemplates
     """;
 
     // 2) Фрагмент простого вложенного поля
-    public const string WriteNestedField = """
+    public const string WriteField = """
             // {Comment}
             writer.Write({Prop}, {Format}, {Length});
             AsciiHelper.SetBitMap({Number}, bitMapDE{ParentNumber});
-    """;
-
-    // 2b) Фрагмент nullable вложенного поля
-    public const string WriteNestedNullableField = """
-            if ({Prop}{Cond})
-            {
-                // {Comment}
-                writer.Write({Prop}{Value}, {Format}, {Length});
-                AsciiHelper.SetBitMap({Number}, bitMapDE{ParentNumber});
-            }
     """;
 
     // 3) Футер вложенного элемента
     public const string WriteNestedFooter = """
             var lenDE{Number} = writer.TotalLength - startDE{Number};
             AsciiHelper.SetLength(lenDE{Number}, spanDE{Number});
-            AsciiHelper.SetBitMap({Number}, bitMapSpan);
+            AsciiHelper.SetBitMap({Number}, bitMapDE0);
             // =============DE{Number} end===================
 
     """;

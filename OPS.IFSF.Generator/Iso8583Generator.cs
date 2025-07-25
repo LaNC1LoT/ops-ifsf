@@ -107,33 +107,21 @@ public sealed class Iso8583Generator : IIncrementalGenerator
         {
             if (f.IsNested)
             {
-                // 1. Шапка composite DExx
                 sb.AppendLine(
                     Iso8583CodeTemplates.WriteNestedHeader
                         .Replace("{Number}", f.Number.ToString())
                 );
 
-                // 2. Вложенные поля
                 foreach (var nf in f.NestedFields.OrderBy(n => n.Number))
                 {
-                    var tpl = nf.IsNullable
-                        ? Iso8583CodeTemplates.WriteNestedNullableField
-                        : Iso8583CodeTemplates.WriteNestedField;
+                    var fullProp = $"{f.PropertyName}.{nf.PropertyName}";
 
                     sb.AppendLine(
-                        tpl
-                          .Replace("{Cond}", nf.IsReferenceType ? " != null" : ".HasValue")
-                          .Replace("{Value}", nf.IsReferenceType ? string.Empty : ".Value")
-                          .Replace("{ParentNumber}", f.Number.ToString())
-                          .Replace("{Number}", nf.Number.ToString())
-                          .Replace("{Comment}", nf.ToSummary())
-                          .Replace("{Prop}", $"{f.PropertyName}.{nf.PropertyName}")
-                          .Replace("{Format}", nf.Format)
-                          .Replace("{Length}", nf.Length.ToString())
-                    );
+                        GenerateWriteField(number: nf.Number, prop: fullProp, format: nf.Format, length: nf.Length,
+                            comment: nf.ToSummary(), isNullable: nf.IsNullable, isReferenceType: nf.IsReferenceType,
+                            parentNumber: f.Number.ToString()));
                 }
 
-                // 3. Футер composite
                 sb.AppendLine(
                     Iso8583CodeTemplates.WriteNestedFooter
                         .Replace("{Number}", f.Number.ToString())
@@ -141,26 +129,32 @@ public sealed class Iso8583Generator : IIncrementalGenerator
             }
             else
             {
-                // обычное поле
-                var tpl = f.IsNullable
-                    ? Iso8583CodeTemplates.WriteNullableField
-                    : Iso8583CodeTemplates.WriteSimpleField;
-
                 sb.AppendLine(
-                    tpl
-                      .Replace("{Cond}", f.IsReferenceType ? " != null" : ".HasValue")
-                      .Replace("{Value}", f.IsReferenceType ? string.Empty : ".Value")
-                      .Replace("{Comment}", f.ToSummary())
-                      .Replace("{Prop}", f.PropertyName)
-                      .Replace("{Format}", f.Format)
-                      .Replace("{Length}", f.Length.ToString())
-                      .Replace("{Number}", f.Number.ToString())
-                );
+                    GenerateWriteField(number: f.Number, prop: f.PropertyName, format: f.Format, length: f.Length,
+                        comment: f.ToSummary(), isNullable: f.IsNullable, isReferenceType: f.IsReferenceType, parentNumber: "0"));
             }
         }
 
         sb.Append(Iso8583CodeTemplates.WriteToFooter);
         return sb.ToString();
+    }
+
+    private static string GenerateWriteField(int number, string prop, string format, int length,
+        string comment, bool isNullable, bool isReferenceType, string parentNumber)
+    {
+        var tpl = isNullable
+            ? Iso8583CodeTemplates.WriteNullableField
+            : Iso8583CodeTemplates.WriteField;
+
+        return tpl
+            .Replace("{Cond}", isReferenceType ? " != null" : ".HasValue")
+            .Replace("{Value}", isReferenceType ? string.Empty : ".Value")
+            .Replace("{Comment}", comment)
+            .Replace("{Prop}", prop)
+            .Replace("{Format}", format)
+            .Replace("{Length}", length.ToString())
+            .Replace("{Number}", number.ToString())
+            .Replace("{ParentNumber}", parentNumber);
     }
 
     #endregion
