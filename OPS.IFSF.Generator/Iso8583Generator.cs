@@ -96,48 +96,53 @@ public sealed class Iso8583Generator : IIncrementalGenerator
 
     private static string GenerateWriteTo(MessageClassModel model)
     {
-        var sb = new StringBuilder();
-        sb.AppendLine(Iso8583CodeTemplates.WriteToHeader(model.Namespace, model.ClassName, model.MessageId));
+        var sbMain = new StringBuilder();
+        var sbNested = new StringBuilder();
+
+        sbMain.AppendLine(Iso8583CodeTemplatesWrite.WriteToHeader(model.Namespace, model.ClassName, model.MessageId));
 
         foreach (var f in model.Fields.OrderBy(f => f.Number))
         {
             if (f.IsNested)
             {
-                sb.AppendLine(Iso8583CodeTemplates.WriteNestedHeader(f.Number));
+                // Вызов вложенного метода
+                sbMain.AppendLine(Iso8583CodeTemplatesWrite.WriteNestedCall(f.Number, f.PropertyName));
+
+                // Генерация тела вложенного метода
+                var nestedWrites = new List<string>();
 
                 foreach (var nf in f.NestedFields.OrderBy(n => n.Number))
                 {
-                    var fullProp = $"{f.PropertyName}.{nf.PropertyName}";
-                    string code = nf.IsNullable
-                        ? Iso8583CodeTemplates.WriteNullableField(
-                            nf.Number, fullProp, nf.Format, nf.Length, nf.ToSummary(),
-                            f.Number.ToString(),
+                    var fullProp = $"value.{nf.PropertyName}";
+                    var fieldCode = nf.IsNullable
+                        ? Iso8583CodeTemplatesWrite.WriteNestedNullableField(
+                            nf.Number, fullProp, nf.Format, nf.Length, nf.ToSummary(), f.Number.ToString(),
                             nf.IsReferenceType ? " != null" : ".HasValue",
                             nf.IsReferenceType ? "" : ".Value")
-                        : Iso8583CodeTemplates.WriteField(
+                        : Iso8583CodeTemplatesWrite.WriteNestedField(
                             nf.Number, fullProp, nf.Format, nf.Length, nf.ToSummary(), f.Number.ToString());
 
-                    sb.AppendLine(code);
+                    nestedWrites.Add(fieldCode);
                 }
 
-                sb.AppendLine(Iso8583CodeTemplates.WriteNestedFooter(f.Number));
+                sbNested.AppendLine(Iso8583CodeTemplatesWrite.WriteNestedMethod(f.Number, f.PropertyType, nestedWrites));
             }
             else
             {
                 string code = f.IsNullable
-                    ? Iso8583CodeTemplates.WriteNullableField(
+                    ? Iso8583CodeTemplatesWrite.WriteNullableField(
                         f.Number, f.PropertyName, f.Format, f.Length, f.ToSummary(),
                         "0", f.IsReferenceType ? " != null" : ".HasValue",
                         f.IsReferenceType ? "" : ".Value")
-                    : Iso8583CodeTemplates.WriteField(
+                    : Iso8583CodeTemplatesWrite.WriteField(
                         f.Number, f.PropertyName, f.Format, f.Length, f.ToSummary(), "0");
 
-                sb.AppendLine(code);
+                sbMain.AppendLine(code);
             }
         }
 
-        sb.AppendLine(Iso8583CodeTemplates.WriteToFooter());
-        return sb.ToString();
+        sbMain.AppendLine(Iso8583CodeTemplatesWrite.WriteToFooter(sbNested.ToString()));
+        return sbMain.ToString();
     }
 
     #endregion
@@ -146,45 +151,45 @@ public sealed class Iso8583Generator : IIncrementalGenerator
 
     private static string GenerateParse(MessageClassModel model)
     {
-        var sb = new StringBuilder();
-        sb.AppendLine(Iso8583CodeTemplates.ParseHeader(model.Namespace, model.ClassName));
+        var sbMain = new StringBuilder();
+        var sbNested = new StringBuilder();
+
+        sbMain.AppendLine(Iso8583CodeTemplatesParse.ParseHeader(model.Namespace, model.ClassName));
 
         foreach (var f in model.Fields.OrderBy(f => f.Number))
         {
             if (f.IsNested)
             {
-                sb.AppendLine(Iso8583CodeTemplates.ParseNestedHeader(f.Number, f.PropertyType));
+                // Вставляем вызов вложенного метода в основной switch
+                sbMain.AppendLine(Iso8583CodeTemplatesParse.ParseNestedCall(f.Number, f.PropertyName));
 
+                // Генерируем тело вложенного метода
+                var nestedSwitches = new List<string>();
                 foreach (var nf in f.NestedFields.OrderBy(n => n.Number))
                 {
-                    string? readMethod = GetReadMethod(nf.PropertyType);
-                    string target = $"nested{f.Number}";
-
-                    string code = readMethod is null
-                        ? Iso8583CodeTemplates.ParseUnsupportedField(nf.Number, nf.PropertyName, nf.PropertyType)
-                        : Iso8583CodeTemplates.ParseField(nf.Number, nf.PropertyName, target, readMethod, nf.Format, nf.Length);
-
-                    sb.AppendLine(code);
+                    var readMethod = GetReadMethod(nf.PropertyType);
+                    string nestedLine = readMethod is null
+                        ? Iso8583CodeTemplatesParse.ParseUnsupportedField(nf.Number, nf.PropertyName, nf.PropertyType)
+                        : Iso8583CodeTemplatesParse.ParseField(nf.Number, nf.PropertyName, "nested", readMethod, nf.Format, nf.Length);
+                    nestedSwitches.Add(nestedLine);
                 }
 
-                sb.AppendLine(Iso8583CodeTemplates.ParseNestedFooter(f.Number, f.PropertyName, f.Number));
+                sbNested.AppendLine(Iso8583CodeTemplatesParse.ParseNestedMethod(f.Number, f.PropertyType, nestedSwitches));
             }
             else
             {
-                string? readMethod = GetReadMethod(f.PropertyType);
-
-                string code = readMethod is null
-                    ? Iso8583CodeTemplates.ParseUnsupportedField(f.Number, f.PropertyName, f.PropertyType)
-                    : Iso8583CodeTemplates.ParseField(f.Number, f.PropertyName, "response", readMethod, f.Format, f.Length);
-
-                sb.AppendLine(code);
+                var readMethod = GetReadMethod(f.PropertyType);
+                string line = readMethod is null
+                    ? Iso8583CodeTemplatesParse.ParseUnsupportedField(f.Number, f.PropertyName, f.PropertyType)
+                    : Iso8583CodeTemplatesParse.ParseField(f.Number, f.PropertyName, "response", readMethod, f.Format, f.Length);
+                sbMain.AppendLine(line);
             }
         }
 
-        sb.AppendLine(Iso8583CodeTemplates.ParseFooter());
-        return sb.ToString();
-
+        sbMain.AppendLine(Iso8583CodeTemplatesParse.ParseFooter(sbNested.ToString()));
+        return sbMain.ToString();
     }
+
 
     private static string? GetReadMethod(string propertyType) => propertyType.ToLower() switch
     {
