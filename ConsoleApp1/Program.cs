@@ -143,9 +143,9 @@ static async Task Purchase()
         SecurityControlInfo = [0x01],
         ProductData = new De63
         {
-            ServiceLevel = "S",
+            ServiceLevel = 'S',
             ItemCount = 1,
-            FormatId = "0",
+            FormatId = '0',
             Items = [
                 new SaleItem
                 {
