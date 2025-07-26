@@ -32,19 +32,19 @@ internal static class Iso8583CodeTemplatesWrite
     """;
     
     public const string WriteNestedArrayFieldStart = """
-                                                         for (int i = 0; i < {Prop}.Count; i++)
-                                                         {
-                                                             var item = {Prop}[i];
+                                                            for (int i = 0; i < {Prop}.Count; i++)
+                                                            {
+                                                                    var item = {Prop}[i];
                                                      """;
 
     public const string WriteArrayFieldPart = """
-                                                           writer.Write(item.{Prop}, {Format}, {Length});
+                                                             writer.Write(item.{Prop}, {Format}, {Length});
                                               """;
 
-    public const string WriteNestedArrayFieldEnd = """
-                                                           }
-                                                           AsciiHelper.SetBitMap({ParentNumber}, bitMapSpan);
-                                                   """;
+    public static string WriteNestedArrayFieldEnd (int number, string parentNumber) => $$"""
+                  }
+                  AsciiHelper.SetBitMap({{number}}, bitMapDE{{parentNumber}});
+          """;
 
     public static string WriteField(int number, string prop, string format, int length, string comment, string parentNumber) => $"""
             // {comment}

@@ -134,11 +134,13 @@ public sealed class Iso8583Generator : IIncrementalGenerator
 
                 foreach (var nf in f.NestedFields.OrderBy(n => n.Number))
                 {
+                    var fullProp = $"value.{nf.PropertyName}";
+                    
                     if (nf.IsArray)
                     {
-                        sbNested.AppendLine(
+                        nestedWrites.Add(
                             Iso8583CodeTemplatesWrite.WriteNestedArrayFieldStart
-                                .Replace("{Prop}", nf.PropertyName)
+                                .Replace("{Prop}", fullProp)
                         );
 
                         var itemFields = nf.ItemFields.OrderBy(x => x.Number).ToList();
@@ -153,28 +155,26 @@ public sealed class Iso8583Generator : IIncrementalGenerator
                                 .Replace("{Format}", pf.Format)
                                 .Replace("{Length}", pf.Length.ToString());
 
-                            sbNested.AppendLine(baseLine);
+                            nestedWrites.Add(baseLine);
 
                             // Поля 4, 5, 6 — добавляем '\' после себя
                             if (pf.Number is 4 or 5 or 6)
                             {
-                                sbNested.AppendLine("        writer.Write(\"\\\\\", IsoFieldFormat.CharPad, 1);");
+                                nestedWrites.Add("               writer.Write(\"\\\\\", IsoFieldFormat.CharPad, 1);");
                             }
                         }
 
                         // 👉 Вставляем '/' только если это не последний item — но В КОНЦЕ айтема
-                        sbNested.AppendLine(
-                            $"        if (i < {nf.PropertyName}.Count - 1) writer.Write(\"/\", IsoFieldFormat.CharPad, 1);");
+                        nestedWrites.Add(
+                            $"              if (i < {fullProp}.Count - 1) writer.Write(\"/\", IsoFieldFormat.CharPad, 1);");
 
-                        sbNested.AppendLine(
-                            Iso8583CodeTemplatesWrite.WriteNestedArrayFieldEnd
-                                .Replace("{ParentNumber}", f.Number.ToString())
+                        nestedWrites.Add(
+                            Iso8583CodeTemplatesWrite.WriteNestedArrayFieldEnd(nf.Number,f.Number.ToString())
                         );
 
                         continue;
                     }
 
-                    var fullProp = $"value.{nf.PropertyName}";
                     var fieldCode = nf.IsNullable
                         ? Iso8583CodeTemplatesWrite.WriteNestedNullableField(
                             nf.Number, fullProp, nf.Format, nf.Length, nf.ToSummary(), f.Number.ToString(),
@@ -232,7 +232,7 @@ public sealed class Iso8583Generator : IIncrementalGenerator
                     if (nf.IsArray)
                     {
                         // Begin array field parsing block
-                        sbNested.AppendLine(
+                        nestedSwitches.Add(
                             Iso8583CodeTemplatesParse.ParseNestedArrayFieldStart
                                 .Replace("{FieldNumber}", nf.Number.ToString())
                                 .Replace("{ItemType}", "SaleItem")
@@ -247,7 +247,7 @@ public sealed class Iso8583Generator : IIncrementalGenerator
                             if (pf.PropertyType == "Char")
                             {
                                 // Use the special char template (reads a one-character string and takes [0])
-                                sbNested.AppendLine(
+                                nestedSwitches.Add(
                                     Iso8583CodeTemplatesParse.ParseArrayFieldPartChar
                                         .Replace("{Prop}", pf.PropertyName.Split('.').Last())
                                         .Replace("{Format}", pf.Format)
@@ -257,7 +257,7 @@ public sealed class Iso8583Generator : IIncrementalGenerator
                             else if (readMethodArray is null)
                             {
                                 // Unsupported type in item – generate a throw (using existing template for unsupported nested field)
-                                sbNested.AppendLine(
+                                nestedSwitches.Add(
                                     Iso8583CodeTemplatesParse.ParseUnsupportedNestedField
                                         .Replace("{FieldNumber}", pf.Number.ToString())
                                         .Replace("{ParentNumber}", f.Number.ToString())
@@ -267,7 +267,7 @@ public sealed class Iso8583Generator : IIncrementalGenerator
                             else
                             {
                                 // Supported field – generate normal field parsing line
-                                sbNested.AppendLine(
+                                nestedSwitches.Add(
                                     Iso8583CodeTemplatesParse.ParseArrayFieldPart
                                         .Replace("{Prop}", pf.PropertyName.Split('.').Last())
                                         .Replace("{ReadMethod}", readMethodArray)
@@ -279,12 +279,12 @@ public sealed class Iso8583Generator : IIncrementalGenerator
                             // If this field is one of those followed by a '\' delimiter in the data, generate a skip for it
                             if (pf.Number is 4 or 5 or 6)
                             {
-                                sbNested.AppendLine(Iso8583CodeTemplatesParse.ParseArrayFieldSkipDelimiter);
+                                nestedSwitches.Add(Iso8583CodeTemplatesParse.ParseArrayFieldSkipDelimiter);
                             }
                         }
 
                         // End of array field parsing block
-                        sbNested.AppendLine(
+                        nestedSwitches.Add(
                             Iso8583CodeTemplatesParse.ParseNestedArrayFieldEnd
                                 .Replace("{FieldNumber}", nf.Number.ToString())
                                 .Replace("{ParentNumber}", f.Number.ToString())
