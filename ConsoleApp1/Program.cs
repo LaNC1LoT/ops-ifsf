@@ -148,25 +148,25 @@ static async Task Purchase()
             FormatId = '0',
             Items = [
                 new SaleItem
-                {
-                    PaymentType = '5',
-                    UnitOfMeasure = 'L',
-                    VatCode = 0,
-                    ProductCode = "12",
-                    Quantity = 10,
-                    UnitPrice = 10,
-                    Amount = 100
-                },
+                     {
+                         PaymentType = '5',
+                         UnitOfMeasure = 'L',
+                         VatCode = 0,
+                         ProductCode = "12",
+                         Quantity = 20.125m,
+                         UnitPrice = 20.55m,
+                         Amount = 413.57m
+                     },
                 new SaleItem
-                {
-                    PaymentType = '5',
-                    UnitOfMeasure = 'L',
-                    VatCode = 0,
-                    ProductCode = "12",
-                    Quantity = 10,
-                    UnitPrice = 10,
-                    Amount = 100
-                },
+                     {
+                         PaymentType = '5',
+                         UnitOfMeasure = 'L',
+                         VatCode = 0,
+                         ProductCode = "12",
+                         Quantity = 20.125m,
+                         UnitPrice = 20.55m,
+                         Amount = 413.57m
+                     },
             ]
         }
     };

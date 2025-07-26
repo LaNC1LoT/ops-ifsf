@@ -522,6 +522,14 @@ public sealed class ChunkedPooledBufferWriter : IDisposable
         return value;
     }
 
+    public char ReadChar(IsoFieldFormat format, int maxLength)
+    {
+        /// TODO: сделать проверки и тд
+        var arr = _readChunk.Buffer.AsSpan(_readOffset, 1);
+        _readOffset += 1;
+        return (char)arr[0];
+    }
+
     public string ReadString(IsoFieldFormat format, int maxLength)
     {
         int length = format switch

@@ -157,27 +157,31 @@ public class ChunkedPooledBufferWriterTests
             /// TODO: Вот это сейчас работает, но нужно перейти на объект
             /// Аналогичный пример ниже в виде класса
             /// ProductData = "F0105L012\\20.125\\20.55\\413.57",
-            //ProductData = new De63
-            //{
-            //    ServiceLevel = 'S',
-            //    ItemCount = 1,
-            //    FormatId = '0',
-            //    //Items = [
-            //    //     new SaleItem
-            //    //     {
-            //    //         PaymentType = '5',
-            //    //         UnitOfMeasure = 'L',
-            //    //         VatCode = 0,
-            //    //         ProductCode = "12",
-            //    //         Quantity = 10,
-            //    //         UnitPrice = 10,
-            //    //         Amount = 100
-            //    //     },
-            //    //    ]
-            //}
+            ProductData = new De63
+            {
+                ServiceLevel = 'F',
+                ItemCount = 01,
+                FormatId = '0',
+                Items = [
+                     new SaleItem
+                     {
+                         PaymentType = '5',
+                         UnitOfMeasure = 'L',
+                         VatCode = 0,
+                         ProductCode = "12",
+                         Quantity = 20.125m,
+                         UnitPrice = 20.55m,
+                         Amount = 413.57m
+                     },
+                ]
+            }
         };
         request.WriteTo(writer);
         var actual = writer.ToArray();
+        var expectedStr = Encoding.ASCII.GetString(expected);
+        var actualStr = Encoding.ASCII.GetString(actual);
+
+        Assert.Equal(expectedStr, actualStr);
         Assert.Equal(expected, actual);
     }
 
@@ -228,24 +232,24 @@ public class ChunkedPooledBufferWriterTests
             /// TODO: Вот это сейчас работает, но нужно перейти на объект
             /// Аналогичный пример ниже в виде класса
             /// ProductData = "F0105L012\\20.125\\20.55\\413.57",
-            //ProductData = new De63
-            //{
-            //    ServiceLevel = 'S',
-            //    ItemCount = 1,
-            //    FormatId = '0',
-            //    //Items = [
-            //    //     new SaleItem
-            //    //     {
-            //    //         PaymentType = '5',
-            //    //         UnitOfMeasure = 'L',
-            //    //         VatCode = 0,
-            //    //         ProductCode = "12",
-            //    //         Quantity = 10,
-            //    //         UnitPrice = 10,
-            //    //         Amount = 100
-            //    //     },
-            //    //    ]
-            //}
+            ProductData = new De63
+            {
+                ServiceLevel = 'F',
+                ItemCount = 01,
+                FormatId = '0',
+                Items = [
+                     new SaleItem
+                     {
+                         PaymentType = '5',
+                         UnitOfMeasure = 'L',
+                         VatCode = 0,
+                         ProductCode = "12",
+                         Quantity = 20.125m,
+                         UnitPrice = 20.55m,
+                         Amount = 413.57m
+                     },
+                ]
+            }
         };
 
         string expected = JsonSerializer.Serialize(request);
