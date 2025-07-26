@@ -3,7 +3,7 @@
 namespace OPS.IFSF.Generator;
 
 public sealed class IsoFieldModel(int number, string propertyName
-    , string format, int length, ITypeSymbol typeSymbol, string propertyType)
+    , string format, int length, ITypeSymbol typeSymbol, string propertyType, bool withBitMapArray)
 {
     public int Number { get; } = number;
     public string PropertyName { get; } = propertyName;
@@ -15,6 +15,7 @@ public sealed class IsoFieldModel(int number, string propertyName
     public List<IsoFieldModel> NestedFields { get; } = [];
     public List<IsoFieldModel> ItemFields { get; } = new();
     public bool IsArray { get; set; }
+    public bool WithBitMapArray { get; set; } = withBitMapArray;
     public bool IsNested => NestedFields.Count > 0;
     public bool IsReferenceType => TypeSymbol.IsReferenceType;
 

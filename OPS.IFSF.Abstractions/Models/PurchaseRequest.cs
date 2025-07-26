@@ -125,7 +125,7 @@ public sealed partial class PurchaseRequest
     /// <summary>
     /// DE63 — Product data, LLLVAR ..999, M
     /// </summary>
-    [IsoField(63, IsoFieldFormat.LLLVar, 999)]
+    [IsoField(63, IsoFieldFormat.LLLVar, 999, false)]
     public De63 ProductData { get; set; }
 
     //[IsoField(63, IsoFieldFormat.DelimitedComposite, 999)]

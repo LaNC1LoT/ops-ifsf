@@ -105,12 +105,13 @@ public sealed class Iso8583Generator : IIncrementalGenerator
             .FirstOrDefault(f => f.HasConstantValue && Equals(f.ConstantValue, enumValue.Value))?
             .Name!;
         var length = (int)attribute.ConstructorArguments[2].Value!;
+        var withBitMapArray = (bool)attribute.ConstructorArguments[3].Value!;
         var isNullable = typeSymbol.NullableAnnotation == NullableAnnotation.Annotated;
         var underlyingType = isNullable && typeSymbol is INamedTypeSymbol named && named.IsGenericType
             ? named.TypeArguments[0].Name
             : typeSymbol.Name;
         var formatFull = $"{enumValue.Type!.ToDisplayString()}.{formatName}";
-        return new IsoFieldModel(number, propName, formatFull, length, typeSymbol, underlyingType);
+        return new IsoFieldModel(number, propName, formatFull, length, typeSymbol, underlyingType, withBitMapArray);
     }
 
     #region Writer
@@ -134,7 +135,6 @@ public sealed class Iso8583Generator : IIncrementalGenerator
 
                 foreach (var nf in f.NestedFields.OrderBy(n => n.Number))
                 {
-                    var fullProp = $"value.{nf.PropertyName}";
                     var fullPropArray = $"value.{nf.PropertyName.Split('.').Last()}";
                     
                     if (nf.IsArray)
@@ -170,26 +170,34 @@ public sealed class Iso8583Generator : IIncrementalGenerator
                         nestedWrites.Add(
                             $"              if (i < {fullPropArray}.Count - 1) writer.Write(\"/\", IsoFieldFormat.CharPad, 1);");
 
-                        nestedWrites.Add(
-                            Iso8583CodeTemplatesWrite.WriteNestedArrayFieldEnd(nf.Number,f.Number.ToString())
+                        nestedWrites.Add(f.WithBitMapArray ? 
+                            Iso8583CodeTemplatesWrite.WriteNestedArrayFieldEnd(nf.Number,f.Number.ToString()) :
+                            Iso8583CodeTemplatesWrite.WriteNestedArrayFieldEndWithOutBitMap(nf.Number,f.Number.ToString()
+                            )
                         );
 
                         continue;
                     }
-
+                    
+                    var writeNestedField = f.WithBitMapArray ? Iso8583CodeTemplatesWrite.WriteNestedField(
+                            nf.Number, fullPropArray, nf.Format, nf.Length, nf.ToSummary(), f.Number.ToString())
+                        : Iso8583CodeTemplatesWrite.WriteNestedFieldWithOutBitMap(
+                        fullPropArray, nf.Format, nf.Length, nf.ToSummary());
+                    
                     var fieldCode = nf.IsNullable
                         ? Iso8583CodeTemplatesWrite.WriteNestedNullableField(
                             nf.Number, fullPropArray, nf.Format, nf.Length, nf.ToSummary(), f.Number.ToString(),
                             nf.IsReferenceType ? " != null" : ".HasValue",
                             nf.IsReferenceType ? "" : ".Value")
-                        : Iso8583CodeTemplatesWrite.WriteNestedField(
-                            nf.Number, fullPropArray, nf.Format, nf.Length, nf.ToSummary(), f.Number.ToString());
+                        : writeNestedField;
 
                     nestedWrites.Add(fieldCode);
                 }
 
                 sbNested.AppendLine(
-                    Iso8583CodeTemplatesWrite.WriteNestedMethod(f.Number, f.PropertyTypeDisplay, nestedWrites));
+                    f.WithBitMapArray ? 
+                        Iso8583CodeTemplatesWrite.WriteNestedMethod(f.Number, f.PropertyTypeDisplay, nestedWrites) : 
+                Iso8583CodeTemplatesWrite.WriteNestedMethodWithOutBitMap(f.Number, f.PropertyTypeDisplay, nestedWrites)) ;
             }
             else
             {
