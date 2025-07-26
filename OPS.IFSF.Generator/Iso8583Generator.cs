@@ -11,7 +11,7 @@ public sealed class Iso8583Generator : IIncrementalGenerator
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
         // TODO: раскоментировать если хочется подебажить генератор
-        //System.Diagnostics.Debugger.Launch();
+        System.Diagnostics.Debugger.Launch();
         var messages = context.SyntaxProvider
             .ForAttributeWithMetadataName(
                 "OPS.IFSF.Abstractions.Attributes.IsoMessageAttribute",
@@ -211,7 +211,7 @@ public sealed class Iso8583Generator : IIncrementalGenerator
 
     #endregion
 
-    #region Reader
+    #region Parse
 
     private static string GenerateParse(MessageClassModel model)
     {
@@ -233,6 +233,8 @@ public sealed class Iso8583Generator : IIncrementalGenerator
                 {
                     if (nf.IsArray)
                     {
+                        sbMain.AppendLine(Iso8583CodeTemplatesParse.ParseNestedCall(nf.Number, nf.PropertyName));
+
                         // Begin array field parsing block
                         nestedSwitches.Add(
                             Iso8583CodeTemplatesParse.ParseNestedArrayFieldStart
@@ -244,45 +246,25 @@ public sealed class Iso8583Generator : IIncrementalGenerator
                         var itemFields = nf.ItemFields.OrderBy(x => x.Number).ToList();
                         for (int j = 0; j < itemFields.Count; j++)
                         {
-                            var pf = itemFields[j];
-                            string? readMethodArray = GetReadMethod(pf.PropertyType);
-                            if (pf.PropertyType == "Char")
-                            {
-                                // Use the special char template (reads a one-character string and takes [0])
-                                nestedSwitches.Add(
-                                    Iso8583CodeTemplatesParse.ParseArrayFieldPartChar
-                                        .Replace("{Prop}", pf.PropertyName.Split('.').Last())
-                                        .Replace("{Format}", pf.Format)
-                                        .Replace("{Length}", pf.Length.ToString())
-                                );
-                            }
-                            else if (readMethodArray is null)
-                            {
-                                // Unsupported type in item – generate a throw (using existing template for unsupported nested field)
-                                nestedSwitches.Add(
-                                    Iso8583CodeTemplatesParse.ParseUnsupportedNestedField
-                                        .Replace("{FieldNumber}", pf.Number.ToString())
-                                        .Replace("{ParentNumber}", f.Number.ToString())
-                                        .Replace("{Type}", pf.PropertyType)
-                                );
-                            }
-                            else
-                            {
-                                // Supported field – generate normal field parsing line
-                                nestedSwitches.Add(
-                                    Iso8583CodeTemplatesParse.ParseArrayFieldPart
-                                        .Replace("{Prop}", pf.PropertyName.Split('.').Last())
-                                        .Replace("{ReadMethod}", readMethodArray)
-                                        .Replace("{Format}", pf.Format)
-                                        .Replace("{Length}", pf.Length.ToString())
-                                );
-                            }
+                            Iso8583CodeTemplatesParse.ParseNestedCall(f.Number, f.PropertyName);
 
-                            // If this field is one of those followed by a '\' delimiter in the data, generate a skip for it
+                            var pf = itemFields[j];
+
+                            /// TODO: избавиться от этого костыля
+                            string? skip = null;
                             if (pf.Number is 4 or 5 or 6)
                             {
-                                nestedSwitches.Add(Iso8583CodeTemplatesParse.ParseArrayFieldSkipDelimiter);
+                                skip = '\n' + Iso8583CodeTemplatesParse.ParseArrayFieldSkipDelimiter;
                             }
+
+                            var readMethod1 = GetReadMethod(pf.PropertyTypeDisplay);
+                            string nestedLine1 = readMethod1 is null
+                                ? Iso8583CodeTemplatesParse.ParseUnsupportedField(pf.Number, pf.PropertyName,
+                                    pf.PropertyTypeDisplay)
+                                : Iso8583CodeTemplatesParse.ParseField(pf.Number, pf.PropertyName.Split('.').Last(), "item", readMethod1,
+                                    pf.Format, pf.Length, skip);
+                            skip = null;
+                            nestedSwitches.Add(nestedLine1);
                         }
 
                         // End of array field parsing block
@@ -333,6 +315,7 @@ public sealed class Iso8583Generator : IIncrementalGenerator
         "int64" => "Long",
         "decimal" => "Decimal",
         "byte[]" => "Array",
+        "char" => "Char", // TODO: Пока так но потом добавить для чтения Char
         _ => null
     };
 
