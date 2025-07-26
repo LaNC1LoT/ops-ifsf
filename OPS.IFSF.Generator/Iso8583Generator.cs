@@ -241,6 +241,10 @@ public sealed class Iso8583Generator : IIncrementalGenerator
                 {
                     if (nf.IsArray)
                     {
+                        if (nf.PropertyName.Split('.').Length == 2)
+                        {
+                            continue;
+                        }
                         sbMain.AppendLine(Iso8583CodeTemplatesParse.ParseNestedCall(nf.Number, nf.PropertyName));
 
                         // Begin array field parsing block
