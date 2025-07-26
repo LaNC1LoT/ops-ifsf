@@ -90,6 +90,11 @@ public sealed class ChunkedPooledBufferWriter : IDisposable
         }
         return result;
     }
+    
+    public bool IsReadFinished()
+    {
+        return _readChunk?.Next == null && _readChunk?.Length == _readOffset;
+    }
 
     #region Write buffer
 
@@ -243,11 +248,18 @@ public sealed class ChunkedPooledBufferWriter : IDisposable
             IsoFieldFormat.LLVar => 2,
             IsoFieldFormat.LLLVar => 3,
             IsoFieldFormat.CharPad => 0,
+            IsoFieldFormat.CharPadWithOutFixedLength => 0, // ⬅️ добавлено
             _ => throw new ArgumentException("Not supported format", nameof(format))
         };
 
-        int contentLength = format == IsoFieldFormat.CharPad ? maxLength : value.Length;
-
+        // ⬇️ новое поведение: длина по value.Length, без паддинга
+        int contentLength = format switch
+        {
+            IsoFieldFormat.CharPad => maxLength,
+            IsoFieldFormat.CharPadWithOutFixedLength => value.Length, // ⬅️ ключевая разница
+            _ => value.Length
+        };
+        
         if (prefixLen > 0)
         {
             WriteNumberPadChunkedDirect(contentLength, prefixLen);
@@ -267,6 +279,10 @@ public sealed class ChunkedPooledBufferWriter : IDisposable
                 if (c is < (char)0x20 or > (char)0x7E)
                     throw new ArgumentException($"Non-ASCII character '{c}' at position {offset + i}");
 
+                // 👇 убираем паддинг только если CharPad2
+                if (offset + i >= value.Length && format == IsoFieldFormat.CharPadWithOutFixedLength)
+                    break;
+                
                 target[i] = (byte)c;
             }
 

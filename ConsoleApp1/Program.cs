@@ -141,25 +141,34 @@ static async Task Purchase()
         CurrencyCode = 643,
         PinData = pinData,
         SecurityControlInfo = [0x01],
-        ProductData = "F0105L012\\20.125\\20.55\\413.57",
-        //ProductData = new De63
-        //{
-        //    ServiceLevel = 'F',
-        //    FormatId = '0',
-        //    ItemCount = 1,
-        //    Items = [
-        //         new SaleItem
-        //         {
-        //             PaymentType = '5',
-        //             UnitOfMeasure = 'L',
-        //             VatCode = 0,
-        //             ProductCode = "12",
-        //             Quantity = 20.125m,
-        //             UnitPrice = 20.55m,
-        //             Amount = 413.57m
-        //         }
-        //    ]
-        //}
+        ProductData = new De63
+        {
+            ServiceLevel = 'S',
+            ItemCount = 1,
+            FormatId = '0',
+            Items = [
+                new SaleItem
+                {
+                    PaymentType = '5',
+                    UnitOfMeasure = 'L',
+                    VatCode = 0,
+                    ProductCode = "12",
+                    Quantity = 10,
+                    UnitPrice = 10,
+                    Amount = 100
+                },
+                new SaleItem
+                {
+                    PaymentType = '5',
+                    UnitOfMeasure = 'L',
+                    VatCode = 0,
+                    ProductCode = "12",
+                    Quantity = 10,
+                    UnitPrice = 10,
+                    Amount = 100
+                },
+            ]
+        }
     };
     request.WriteTo(writer);
 

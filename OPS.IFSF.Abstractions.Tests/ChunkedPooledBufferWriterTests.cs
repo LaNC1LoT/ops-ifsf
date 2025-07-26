@@ -156,7 +156,7 @@ public class ChunkedPooledBufferWriterTests
             SecurityControlInfo = [0x01],
             /// TODO: Вот это сейчас работает, но нужно перейти на объект
             /// Аналогичный пример ниже в виде класса
-            ProductData = "F0105L012\\20.125\\20.55\\413.57",
+            /// ProductData = "F0105L012\\20.125\\20.55\\413.57",
             //ProductData = new De63
             //{
             //    ServiceLevel = 'S',
@@ -227,7 +227,7 @@ public class ChunkedPooledBufferWriterTests
             SecurityControlInfo = [0x01],
             /// TODO: Вот это сейчас работает, но нужно перейти на объект
             /// Аналогичный пример ниже в виде класса
-            ProductData = "F0105L012\\20.125\\20.55\\413.57",
+            /// ProductData = "F0105L012\\20.125\\20.55\\413.57",
             //ProductData = new De63
             //{
             //    ServiceLevel = 'S',

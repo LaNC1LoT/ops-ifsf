@@ -126,7 +126,7 @@ public sealed partial class PurchaseRequest
     /// DE63 — Product data, LLLVAR ..999, M
     /// </summary>
     [IsoField(63, IsoFieldFormat.LLLVar, 999)]
-    public string ProductData { get; set; } = default!;
+    public De63 ProductData { get; set; }
 
     //[IsoField(63, IsoFieldFormat.DelimitedComposite, 999)]
     //public De63 ProductData { get; set; }
@@ -146,7 +146,7 @@ public class SaleItem
     [IsoField(3, IsoFieldFormat.NumPad, 1)]
     public int VatCode { get; set; }
 
-    [IsoField(4, IsoFieldFormat.CharPad, 17)]
+    [IsoField(4, IsoFieldFormat.CharPadWithOutFixedLength, 17)]
     public string ProductCode { get; set; }
 
     [IsoField(5, IsoFieldFormat.DecFrac3, 9)]
@@ -182,7 +182,7 @@ public class De63
     /// <summary>
     /// Сам список товаров
     /// </summary>
-    //[IsoField(64, IsoFieldFormat.Array, 0)]
+    [IsoField(4, IsoFieldFormat.Array, 0)]
     public List<SaleItem> Items { get; set; } = [];
 }
 

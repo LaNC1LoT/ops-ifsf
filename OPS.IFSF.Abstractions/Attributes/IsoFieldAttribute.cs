@@ -7,4 +7,5 @@ public sealed class IsoFieldAttribute(int number, IsoFieldFormat format, int len
     public int Number { get; } = number;
     public IsoFieldFormat Format { get; } = format;
     public int Length { get; } = length;
+    // public char? Delimiter => delimiter == '\0' ? null : delimiter;
 }
