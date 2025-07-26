@@ -93,4 +93,43 @@ internal class Iso8583CodeTemplatesParse
             return nested;
         }
     """;
+    
+    // 3b) Неподдерживаемый nested DE
+    public const string ParseUnsupportedNestedField = """
+                                                          case {FieldNumber}: 
+                                                              throw new NotSupportedException("Unsupported nested type '{Type}' for DE{ParentNumber}");
+                                                      """;
+    
+            public const string ParseNestedArrayFieldStart = """
+                                                                               case {FieldNumber}: // DE{FieldNumber} (repeating items)
+                                                                                   var list{FieldNumber} = new List<{ItemType}>();
+                                                                                   while (!writer.IsReadFinished())
+                                                                                   {
+                                                                                       var item = new {ItemType}();
+                                                                            """;
+
+    // Template for one item field assignment within the loop (for supported types)
+    public const string ParseArrayFieldPart = """
+                                                                                       item.{Prop} = writer.Read{ReadMethod}({Format}, {Length});
+                                                                            """;
+
+    // Template for one item field assignment if the field is a char (read string and take first char)
+    public const string ParseArrayFieldPartChar = """
+                                                                                       item.{Prop} = writer.ReadString({Format}, {Length})[0];
+                                                                            """;
+
+    // Template to skip the '\' delimiter after certain fields (4,5,6 in our example)
+    public const string ParseArrayFieldSkipDelimiter = """
+                                                                                       writer.ReadString(IsoFieldFormat.CharPad, 1); // skip delimiter
+                                                                            """;
+
+    // Template for ending the parsing of an array field: add item to list, skip item separator, assign list, and break
+    public const string ParseNestedArrayFieldEnd = """
+                                                                                       list{FieldNumber}.Add(item);
+                                                                                       if (!writer.IsReadFinished())
+                                                                                           writer.ReadString(IsoFieldFormat.CharPad, 1); // skip item delimiter '/'
+                                                                                   }
+                                                                                   nested{ParentNumber}.{InnerProp} = list{FieldNumber};
+                                                                                   break;
+                                                                            """;
 }

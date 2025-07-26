@@ -30,6 +30,21 @@ internal static class Iso8583CodeTemplatesWrite
     {{nestedMethods}}
     }
     """;
+    
+    public const string WriteNestedArrayFieldStart = """
+                                                         for (int i = 0; i < {Prop}.Count; i++)
+                                                         {
+                                                             var item = {Prop}[i];
+                                                     """;
+
+    public const string WriteArrayFieldPart = """
+                                                           writer.Write(item.{Prop}, {Format}, {Length});
+                                              """;
+
+    public const string WriteNestedArrayFieldEnd = """
+                                                           }
+                                                           AsciiHelper.SetBitMap({ParentNumber}, bitMapSpan);
+                                                   """;
 
     public static string WriteField(int number, string prop, string format, int length, string comment, string parentNumber) => $"""
             // {comment}
