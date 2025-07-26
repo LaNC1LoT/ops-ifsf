@@ -135,12 +135,14 @@ public sealed class Iso8583Generator : IIncrementalGenerator
                 foreach (var nf in f.NestedFields.OrderBy(n => n.Number))
                 {
                     var fullProp = $"value.{nf.PropertyName}";
+                    var fullPropArray = $"value.{nf.PropertyName.Split('.').Last()}";
                     
                     if (nf.IsArray)
                     {
+                        
                         nestedWrites.Add(
                             Iso8583CodeTemplatesWrite.WriteNestedArrayFieldStart
-                                .Replace("{Prop}", fullProp)
+                                .Replace("{Prop}", fullPropArray)
                         );
 
                         var itemFields = nf.ItemFields.OrderBy(x => x.Number).ToList();
@@ -166,7 +168,7 @@ public sealed class Iso8583Generator : IIncrementalGenerator
 
                         // 👉 Вставляем '/' только если это не последний item — но В КОНЦЕ айтема
                         nestedWrites.Add(
-                            $"              if (i < {fullProp}.Count - 1) writer.Write(\"/\", IsoFieldFormat.CharPad, 1);");
+                            $"              if (i < {fullPropArray}.Count - 1) writer.Write(\"/\", IsoFieldFormat.CharPad, 1);");
 
                         nestedWrites.Add(
                             Iso8583CodeTemplatesWrite.WriteNestedArrayFieldEnd(nf.Number,f.Number.ToString())
@@ -177,11 +179,11 @@ public sealed class Iso8583Generator : IIncrementalGenerator
 
                     var fieldCode = nf.IsNullable
                         ? Iso8583CodeTemplatesWrite.WriteNestedNullableField(
-                            nf.Number, fullProp, nf.Format, nf.Length, nf.ToSummary(), f.Number.ToString(),
+                            nf.Number, fullPropArray, nf.Format, nf.Length, nf.ToSummary(), f.Number.ToString(),
                             nf.IsReferenceType ? " != null" : ".HasValue",
                             nf.IsReferenceType ? "" : ".Value")
                         : Iso8583CodeTemplatesWrite.WriteNestedField(
-                            nf.Number, fullProp, nf.Format, nf.Length, nf.ToSummary(), f.Number.ToString());
+                            nf.Number, fullPropArray, nf.Format, nf.Length, nf.ToSummary(), f.Number.ToString());
 
                     nestedWrites.Add(fieldCode);
                 }
@@ -299,7 +301,7 @@ public sealed class Iso8583Generator : IIncrementalGenerator
                     string nestedLine = readMethod is null
                         ? Iso8583CodeTemplatesParse.ParseUnsupportedField(nf.Number, nf.PropertyName,
                             nf.PropertyTypeDisplay)
-                        : Iso8583CodeTemplatesParse.ParseField(nf.Number, nf.PropertyName, "nested", readMethod,
+                        : Iso8583CodeTemplatesParse.ParseField(nf.Number, nf.PropertyName.Split('.').Last(), "nested", readMethod,
                             nf.Format, nf.Length);
                     nestedSwitches.Add(nestedLine);
                 }

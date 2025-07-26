@@ -53,6 +53,12 @@ internal class Iso8583CodeTemplatesParse
                             {target}.{prop} = writer.Read{readMethod}({format}, {length});
                             break;
     """;
+    
+    public static string ParseNestedField(int number, string prop, string target, string readMethod, string format, int length) => $"""
+                             case {number}: // DE{number}
+                                 {target}.{prop} = writer.Read{readMethod}({format}, {length});
+                                 break;
+         """;
 
     public static string ParseUnsupportedField(int number, string prop, string type) => $"""
                         case {number}: // DE{number}
