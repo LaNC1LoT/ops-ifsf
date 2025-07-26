@@ -18,7 +18,7 @@ public sealed partial class PurchaseResponse
     /// DE4 — Amount, transaction, num(12) with 2 decimals, M  
     /// (финальная сумма, включая скидки)
     /// </summary>
-    [IsoField(4, IsoFieldFormat.NumDecPad, 12)]
+    [IsoField(4, IsoFieldFormat.DecFrac2, 12)]
     public decimal Amount { get; set; }
 
     /// <summary>
@@ -43,7 +43,7 @@ public sealed partial class PurchaseResponse
     /// DE30 — Original amounts, num(24) with 2 decimals, C  
     /// (если сумма отличается от запрошенной)
     /// </summary>
-    [IsoField(30, IsoFieldFormat.NumDecPad, 24)]
+    [IsoField(30, IsoFieldFormat.DecFrac2, 24)]
     public decimal? OriginalAmounts { get; set; }
 
     /// <summary>

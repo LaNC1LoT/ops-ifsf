@@ -1,4 +1,6 @@
-﻿using OPS.IFSF.Abstractions.Attributes;
+﻿using System.Text;
+using OPS.IFSF.Abstractions.Attributes;
+using OPS.IFSF.Abstractions.Buffers;
 
 namespace OPS.IFSF.Abstractions.Models;
 
@@ -75,7 +77,7 @@ public sealed partial class PurchaseRequest
     //public string? Track2Data { get; set; }
 
     /// <summary>
-    /// DE41 — Card acceptor terminal identification, char(8), M
+    /// DE41 — Card acceptor terminal identification, char(8), M ВАЖНО: В ответе это поле так же добавляло пустое пространство!!!!!!!!!!!!!!!
     /// </summary>
     [IsoField(41, IsoFieldFormat.CharPad, 8)]
     public string TerminalId { get; set; } = default!;
@@ -114,7 +116,7 @@ public sealed partial class PurchaseRequest
     /// DE53 — Security Related Control Information, LLVAR ..48, M
     /// </summary>
     [IsoField(53, IsoFieldFormat.LLVar, 48)]
-    public byte[] SecurityControlInfo { get; set; } 
+    public byte[] SecurityControlInfo { get; set; } = default!;
 
     /// <summary>
     /// DE59 — Transport Data, LLLVAR ..999, O
@@ -125,11 +127,10 @@ public sealed partial class PurchaseRequest
     /// <summary>
     /// DE63 — Product data, LLLVAR ..999, M
     /// </summary>
-    [IsoField(63, IsoFieldFormat.LLLVar, 999)]
-    public string ProductData { get; set; } = default!;
-
-    //[IsoField(63, IsoFieldFormat.DelimitedComposite, 999)]
-    //public De63 ProductData { get; set; }
+    //[IsoField(63, IsoFieldFormat.LLLVar, 999)]
+    //public string ProductData { get; set; } = default!;
+    [IsoField(63, IsoFieldFormat.DelimitedComposite, 999)]
+    public De63 ProductData { get; set; }
 }
 
 /// <summary>
@@ -146,8 +147,8 @@ public class SaleItem
     [IsoField(3, IsoFieldFormat.NumPad, 1)]
     public int VatCode { get; set; }
 
-    [IsoField(4, IsoFieldFormat.CharPad, 17)]
-    public string ProductCode { get; set; }
+    [IsoField(4, IsoFieldFormat.CharPadWithOutFixedLength, 17)]
+    public string ProductCode { get; set; } = string.Empty;
 
     [IsoField(5, IsoFieldFormat.DecFrac3, 9)]
     public decimal Quantity { get; set; }
@@ -165,7 +166,7 @@ public class De63
     /// 'F' = full service, 'S' = self-service, ' ' = none
     /// </summary>
     [IsoField(1, IsoFieldFormat.CharPad, 1)]
-    public char ServiceLevel { get; set; }
+    public String ServiceLevel { get; set; }
 
     /// <summary>
     /// Количество строк в списке (Item count)
@@ -177,12 +178,12 @@ public class De63
     /// Format-ID (навсегда '0')
     /// </summary>
     [IsoField(3, IsoFieldFormat.CharPad, 1)]
-    public char FormatId { get; set; }
+    public String FormatId { get; set; }
 
     /// <summary>
     /// Сам список товаров
     /// </summary>
-    //[IsoField(64, IsoFieldFormat.Array, 0)]
+    [IsoField(4, IsoFieldFormat.Array, 0)]
     public List<SaleItem> Items { get; set; } = [];
 }
 

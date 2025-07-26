@@ -80,52 +80,50 @@ static async Task CardInformation()
     //Console.WriteLine(string.Join("-", Convert.ToHexString(data.Span).Chunk(2).Select(c => new string(c))));
 }
 
-static async Task Ping()
-{
-    using ChunkedPooledBufferWriter writer = new();
-    NetworkManagementRequest request = new()
-    {
-        TransmissionDateTime = DateTime.Now,
-        Stan = 1,
-        AcquirerId = "280131"
-    };
-    request.WriteTo(writer);
+//static async Task Ping()
+//{
+//    using ChunkedPooledBufferWriter writer = new();
+//    NetworkManagementRequest request = new()
+//    {
+//        TransmissionDateTime = DateTime.Now,
+//        Stan = 1,
+//        AcquirerId = "280131"
+//    };
+//    request.WriteTo(writer);
 
-    using var client = new TcpClient();
-    //await client.ConnectAsync("127.0.0.1", 8525);
-    await client.ConnectAsync("193.169.178.252", 8525);
-    var stream = client.GetStream();
-    await writer.ToStreamAsync(stream);
-    writer.Clear();
+//    using var client = new TcpClient();
+//    await client.ConnectAsync("127.0.0.1", 8525);
+//    var stream = client.GetStream();
+//    await writer.ToStreamAsync(stream);
+//    writer.Clear();
 
-    var leng = writer.GetMemory(4);
-    await stream.ReadExactlyAsync(leng);
+//    var leng = writer.GetMemory(4);
+//    await stream.ReadExactlyAsync(leng);
 
-    writer.BeginRead();
-    var len = writer.ReadInt(IsoFieldFormat.NumPad, 4);
+//    writer.BeginRead();
+//    var len = writer.ReadInt(IsoFieldFormat.NumPad, 4);
 
-    var data = writer.GetMemory(len);
-    var val = await stream.ReadAsync(data);
-    Console.WriteLine(Encoding.ASCII.GetString(data.Span));
-    Console.WriteLine(string.Join(", ", data.ToArray()));
+//    var data = writer.GetMemory(len);
+//    var val = await stream.ReadAsync(data);
+//    Console.WriteLine(Encoding.ASCII.GetString(data.Span));
+//    Console.WriteLine(string.Join(", ", data.ToArray()));
 
-    var response = NetworkManagementResponse.Parse(writer);
-    //Console.WriteLine(string.Join("-", Convert.ToHexString(data.Span).Chunk(2).Select(c => new string(c))));
-}
+//    var response = NetworkManagementResponse.Parse(writer);
+//    //Console.WriteLine(string.Join("-", Convert.ToHexString(data.Span).Chunk(2).Select(c => new string(c))));
+//}
 
 static async Task Purchase()
 {
-    //var pinData = Convert.FromHexString("1111111111111111");
-    var pinData = Convert.FromHexString("753c77c4893c2378");
+    var pinData = Convert.FromHexString("1111111111111111");
     using ChunkedPooledBufferWriter writer = new();
     PurchaseRequest request = new()
     {
         PAN = "7801310000009999490",
         ProcessingCode = 0,
-        Amount = 413.57m,
-        TransmissionDateTime = new DateTime(2025, 07, 23, 22, 13, 00), //DateTime.UtcNow,
-        Stan = 22,
-        LocalDateTime = new DateTime(2025, 07, 23, 22, 13, 00),
+        Amount = 100,
+        TransmissionDateTime = DateTime.UtcNow,
+        Stan = 17,
+        LocalDateTime = DateTime.UtcNow,
         PointOfServiceDataCode = "B0010160014C",
         FunctionCode = 200,
         CardAcceptorBusinessCode = 5541,
@@ -141,35 +139,48 @@ static async Task Purchase()
         CurrencyCode = 643,
         PinData = pinData,
         SecurityControlInfo = [0x01],
-        ProductData = "F0105L012\\20.125\\20.55\\413.57",
-        //ProductData = new De63
-        //{
-        //    ServiceLevel = 'F',
-        //    FormatId = '0',
-        //    ItemCount = 1,
-        //    Items = [
-        //         new SaleItem
-        //         {
-        //             PaymentType = '5',
-        //             UnitOfMeasure = 'L',
-        //             VatCode = 0,
-        //             ProductCode = "12",
-        //             Quantity = 20.125m,
-        //             UnitPrice = 20.55m,
-        //             Amount = 413.57m
-        //         }
-        //    ]
-        //}
+        //ProductData = "F0105L012\\20.125\\20.55\\413.57"
+        ProductData = new De63
+        {
+            ServiceLevel = "S",
+            ItemCount = 1,
+            FormatId = "0",
+            Items = [
+                  new SaleItem
+                  {
+                      PaymentType = '5',
+                      UnitOfMeasure = 'L',
+                      VatCode = 0,
+                      ProductCode = "12",
+                      Quantity = 10,
+                      UnitPrice = 10,
+                      Amount = 100
+                  },
+                  new SaleItem
+                  {
+                      PaymentType = '5',
+                      UnitOfMeasure = 'L',
+                      VatCode = 0,
+                      ProductCode = "12",
+                      Quantity = 10,
+                      UnitPrice = 10,
+                      Amount = 100
+                  },
+                 ]
+        }
     };
     request.WriteTo(writer);
 
     var res = writer.ToArray();
-    Console.WriteLine(string.Join(", ", res));
+    Console.WriteLine(string.Join("-", Convert.ToHexString(res).Chunk(2).Select(c => new string(c))));
     Console.WriteLine(Encoding.ASCII.GetString(res));
+    
+    writer.BeginRead(); 
+    var parsed = PurchaseResponse.Parse(writer);
+    Console.WriteLine($"Response ApprovedCode: {parsed.ApprovalCode}");
 
     using var client = new TcpClient();
-    //await client.ConnectAsync("127.0.0.1", 8525);
-    await client.ConnectAsync("193.169.178.252", 8525);
+    await client.ConnectAsync("127.0.0.1", 8525);
     var stream = client.GetStream();
     await writer.ToStreamAsync(stream);
     writer.Clear();

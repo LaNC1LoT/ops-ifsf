@@ -8,6 +8,7 @@ public enum IsoFieldFormat
     LLVar,
     LLLVar,
     CharPad,
+    CharPadWithOutFixedLength,
     NumPad,
     NumDecPad,
     DecFrac2,
