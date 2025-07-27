@@ -410,18 +410,16 @@ public sealed class ChunkedPooledBufferWriter : IDisposable
 
     public decimal ReadDecimal(IsoFieldFormat format, int maxLength)
     {
-        //if (format != IsoFieldFormat.NumPad)
-        //{
-        //    throw new ArgumentOutOfRangeException(nameof(format));
-        //}
         ValidateRead(maxLength);
 
-        int value = 0;
-        while (maxLength > 0)
-        {
-            if (_readChunk is null) throw new EndOfStreamException();
+        Span<byte> buffer = stackalloc byte[maxLength];
+        int written = 0;
 
-            var span = _readChunk.Buffer;
+        while (written < maxLength)
+        {
+            if (_readChunk is null)
+                throw new EndOfStreamException();
+
             int available = _readChunk.Length - _readOffset;
 
             if (available == 0)
@@ -431,20 +429,29 @@ public sealed class ChunkedPooledBufferWriter : IDisposable
                 continue;
             }
 
-            int take = Math.Min(maxLength, available);
+            int toRead = Math.Min(maxLength - written, available);
+            var span = _readChunk.Buffer.AsSpan(_readOffset, toRead);
 
-            for (int i = 0; i < take; i++)
+            for (int i = 0; i < toRead; i++)
             {
-                byte b = span[_readOffset++];
-                if ((uint)(b - '0') > 9) throw new FormatException();
-                value = value * 10 + (b - '0');
+                byte b = span[i];
+                if (!((b >= '0' && b <= '9') || b == '.'))
+                    throw new FormatException($"Invalid char '{(char)b}' in decimal");
+
+                buffer[written++] = b;
             }
 
-            maxLength -= take;
+            _readOffset += toRead;
         }
 
-        return value / 100m;
+        var str = System.Text.Encoding.ASCII.GetString(buffer.Slice(0, written));
+
+        if (!decimal.TryParse(str, System.Globalization.NumberStyles.Number, System.Globalization.CultureInfo.InvariantCulture, out var result))
+            throw new FormatException($"Failed to parse decimal from '{str}'");
+
+        return result;
     }
+
 
     public int ReadInt(IsoFieldFormat format, int maxLength)
     {

@@ -178,45 +178,45 @@ public sealed class Iso8583Generator : IIncrementalGenerator
                             Iso8583CodeTemplatesWrite.WriteNestedArrayFieldStart
                                 .Replace("{Prop}", fullPropArray)
                         );
-
+                    
                         var itemFields = nf.ItemFields.OrderBy(x => x.Number).ToList();
-
+                    
                         for (int j = 0; j < itemFields.Count; j++)
                         {
                             var pf = itemFields[j];
-
+                    
                             // Генерация поля
                             string baseLine = Iso8583CodeTemplatesWrite.WriteArrayFieldPart
                                 .Replace("{Prop}", pf.PropertyName.Split('.').Last())
                                 .Replace("{Format}", pf.Format)
                                 .Replace("{Length}", pf.Length.ToString());
-
+                    
                             if (pf.BeforeDelimiter != ' ')
                             {
                                 var escaped = EscapeCharForCSharp(pf.BeforeDelimiter);
-
+                    
                                 nestedWrites.Add(
                                     $"               writer.Write(\"{escaped}\", IsoFieldFormat.CharPad, 1);");
                             }
-
+                    
                             nestedWrites.Add(baseLine);
                         }
-
+                    
                         if (nf.ItemSplitter != ' ')
                         {
                             var escaped = EscapeCharForCSharp(nf.ItemSplitter);
-
+                    
                             nestedWrites.Add(
                                 $"              if (i < {fullPropArray}.Count - 1) writer.Write(\"{escaped}\", IsoFieldFormat.CharPad, 1);");
                         }
-
+                    
                         nestedWrites.Add(f.WithBitMapArray
                             ? Iso8583CodeTemplatesWrite.WriteNestedArrayFieldEnd(nf.Number, f.Number.ToString())
                             : Iso8583CodeTemplatesWrite.WriteNestedArrayFieldEndWithOutBitMap(nf.Number,
                                 f.Number.ToString()
                             )
                         );
-
+                    
                         continue;
                     }
 
@@ -264,107 +264,73 @@ public sealed class Iso8583Generator : IIncrementalGenerator
 
     #region Parse
 
-    private static string GenerateParse(MessageClassModel model)
+private static string GenerateParse(MessageClassModel model)
+{
+    var sbMain = new StringBuilder();
+    var sbNested = new StringBuilder();
+
+    sbMain.AppendLine(Iso8583CodeTemplatesParse.ParseHeader(model.Namespace, model.ClassName));
+
+    foreach (var f in model.Fields.OrderBy(f => f.Number))
     {
-        var sbMain = new StringBuilder();
-        var sbNested = new StringBuilder();
-
-        sbMain.AppendLine(Iso8583CodeTemplatesParse.ParseHeader(model.Namespace, model.ClassName));
-
-        foreach (var f in model.Fields.OrderBy(f => f.Number))
+        if (f.IsNested)
         {
-            if (f.IsNested)
+            // Вставляем вызов вложенного метода в основной switch
+            sbMain.AppendLine(Iso8583CodeTemplatesParse.ParseNestedCall(f.Number, f.PropertyName));
+
+            // Генерация тела вложенного метода
+            var nestedParsers = new List<string>();
+
+            foreach (var nf in f.NestedFields.OrderBy(n => n.Number))
             {
-                // Вставляем вызов вложенного метода в основной switch
-                sbMain.AppendLine(Iso8583CodeTemplatesParse.ParseNestedCall(f.Number, f.PropertyName));
+                // 👇 пока пропускаем массив — вернёмся позже
+                if (nf.IsArray) continue;
 
-                // Генерируем тело вложенного метода
-                var nestedSwitches = new List<string>();
-                foreach (var nf in f.NestedFields.OrderBy(n => n.Number))
-                {
-                    if (nf.IsArray)
-                    {
-                        // Begin array field parsing block
-                        nestedSwitches.Add(
-                            Iso8583CodeTemplatesParse.ParseNestedArrayFieldStart
-                                .Replace("{FieldNumber}", nf.Number.ToString())
-                                .Replace("{ItemType}", nf.ItemTypeDisplay ?? "object")
-                        );
+                var readMethod = GetReadMethod(nf.PropertyTypeDisplay);
 
-                        // Loop through each sub-field of the item
-                        var itemFields = nf.ItemFields.OrderBy(x => x.Number).ToList();
-                        for (int j = 0; j < itemFields.Count; j++)
-                        {
-                            Iso8583CodeTemplatesParse.ParseNestedCall(nf.Number, nf.PropertyName);
-
-                            var pf = itemFields[j];
-
-                            string? skip = null;
-
-                            if (pf.BeforeDelimiter != ' ')
-                            {
-                                skip = '\n' + Iso8583CodeTemplatesParse.ParseArrayFieldSkipDelimiter;
-                            }
-
-                            var readMethod1 = GetReadMethod(pf.PropertyTypeDisplay);
-                            string nestedLine1 = readMethod1 is null
-                                ? Iso8583CodeTemplatesParse.ParseUnsupportedField(pf.Number, pf.PropertyName, pf.PropertyTypeDisplay)
-                                : Iso8583CodeTemplatesParse.ParseField(
-                                    pf.Number,
-                                    pf.PropertyName.Split('.').Last(),
-                                    "item",
-                                    readMethod1,
-                                    pf.Format,
-                                    pf.Length,
-                                    skip
-                                );
-
-                            skip = null;
-                            nestedSwitches.Add(nestedLine1);
-                        }
-
-                        // End of array field parsing block
-                        nestedSwitches.Add(
-                            Iso8583CodeTemplatesParse.ParseNestedArrayFieldEnd
-                                .Replace("{FieldNumber}", nf.Number.ToString())
-                                .Replace("{ParentNumber}", f.Number.ToString())
-                                .Replace("{InnerProp}", nf.PropertyName.Split('.').Last())
-                        );
-
-                        continue; // move to next nested field
-                    }
-
-                    var readMethod = GetReadMethod(nf.PropertyTypeDisplay);
-                    string nestedLine = readMethod is null
-                        ? Iso8583CodeTemplatesParse.ParseUnsupportedField(nf.Number, nf.PropertyName,
-                            nf.PropertyTypeDisplay)
-                        : Iso8583CodeTemplatesParse.ParseField(nf.Number, nf.PropertyName.Split('.').Last(), "nested",
+                string nestedLine = readMethod is null
+                    ? Iso8583CodeTemplatesParse.ParseUnsupportedField(nf.Number, nf.PropertyName, nf.PropertyTypeDisplay)
+                    : Iso8583CodeTemplatesParse.ParseField(
+                            nf.Number,
+                            nf.PropertyName.Split('.').Last(),
+                            "nested",
                             readMethod,
-                            nf.Format, nf.Length);
-                    nestedSwitches.Add(nestedLine);
-                }
+                            nf.Format,
+                            nf.Length
+                        );
 
-                sbNested.AppendLine(
-                    f.WithBitMapArray
-                        ? Iso8583CodeTemplatesParse.ParseNestedMethod(f.Number, f.PropertyTypeDisplay, nestedSwitches)
-                        : Iso8583CodeTemplatesParse.ParseNestedMethodWithoutBitmap(f.Number, f.PropertyTypeDisplay, nestedSwitches)
-                );
+                nestedParsers.Add(nestedLine);
             }
-            else
-            {
-                var readMethod = GetReadMethod(f.PropertyTypeDisplay);
 
-                string line = readMethod is null
-                    ? Iso8583CodeTemplatesParse.ParseUnsupportedField(f.Number, f.PropertyName, f.PropertyTypeDisplay)
-                    : Iso8583CodeTemplatesParse.ParseField(f.Number, f.PropertyName, "response", readMethod, f.Format,
-                        f.Length);
-                sbMain.AppendLine(line);
-            }
+            sbNested.AppendLine(
+                f.WithBitMapArray
+                    ? Iso8583CodeTemplatesParse.ParseNestedMethod(f.Number, f.PropertyTypeDisplay, nestedParsers)
+                    : Iso8583CodeTemplatesParse.ParseNestedMethodWithoutBitmap(f.Number, f.PropertyTypeDisplay, nestedParsers)
+            );
         }
+        else
+        {
+            var readMethod = GetReadMethod(f.PropertyTypeDisplay);
 
-        sbMain.AppendLine(Iso8583CodeTemplatesParse.ParseFooter(sbNested.ToString()));
-        return sbMain.ToString();
+            string line = readMethod is null
+                ? Iso8583CodeTemplatesParse.ParseUnsupportedField(f.Number, f.PropertyName, f.PropertyTypeDisplay)
+                : Iso8583CodeTemplatesParse.ParseField(
+                    f.Number,
+                    f.PropertyName,
+                    "response",
+                    readMethod,
+                    f.Format,
+                    f.Length
+                );
+
+            sbMain.AppendLine(line);
+        }
     }
+
+    sbMain.AppendLine(Iso8583CodeTemplatesParse.ParseFooter(sbNested.ToString()));
+    return sbMain.ToString();
+}
+
 
 
     private static string? GetReadMethod(string propertyType) => propertyType.ToLower() switch

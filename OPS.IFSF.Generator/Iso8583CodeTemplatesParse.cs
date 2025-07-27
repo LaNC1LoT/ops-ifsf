@@ -53,7 +53,7 @@ internal class Iso8583CodeTemplatesParse
                             {extentions}
                             {target}.{prop} = writer.Read{readMethod}({format}, {length});
                             break;
-    """;
+    """;   
 
     public static string ParseUnsupportedField(int number, string prop, string type) => $"""
                         case {number}: // DE{number}
@@ -99,22 +99,28 @@ internal class Iso8583CodeTemplatesParse
               private static {{propClass}} ParseDE{{number}}(ChunkedPooledBufferWriter writer)
               {
                   var length = writer.ReadInt(IsoFieldFormat.NumPad, 3);
-                  var endOffset = writer.GetCurrentOffset() + length;
+                  var span = writer.GetSpan(length);
+                  var reader = new SpanReader(span);
 
                   var nested = new {{propClass}}();
-                  for (int fieldNumber = 1; !writer.IsReadFinished() && writer.GetCurrentOffset() < endOffset; fieldNumber++)
+
+                  int fieldIndex = 1;
+                  while (!reader.IsEnd)
                   {
-                      switch (fieldNumber)
+                      switch (fieldIndex++)
                       {
           {{string.Join("\n", fieldParsers)}}
                           default:
-                              throw new ArgumentOutOfRangeException(nameof(fieldNumber), "Unknown nested field DE{{number}}");
+                              // Если дошли до конца известных полей — выходим.
+                              reader.SkipToEnd();
+                              break;
                       }
                   }
 
                   return nested;
               }
           """;
+
 
     public const string ParseNestedArrayFieldStart = $$"""
                         case {FieldNumber}: // DE{FieldNumber} (repeating items)

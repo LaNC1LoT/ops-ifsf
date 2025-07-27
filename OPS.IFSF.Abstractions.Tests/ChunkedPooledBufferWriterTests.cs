@@ -99,8 +99,11 @@ public class ChunkedPooledBufferWriterTests
             AcquirerId = "280131",
             ActionCode = 800
         };
-        byte[] data = [49, 56, 49, 48, 2, 32, 0, 1, 2, 0, 0, 0, 48, 54, 48, 57, 49, 57, 52, 53, 
-            48, 53, 48, 48, 48, 48, 48, 49, 48, 54, 50, 56, 48, 49, 51, 49, 56, 48, 48];
+        byte[] data =
+        [
+            49, 56, 49, 48, 2, 32, 0, 1, 2, 0, 0, 0, 48, 54, 48, 57, 49, 57, 52, 53,
+            48, 53, 48, 48, 48, 48, 48, 49, 48, 54, 50, 56, 48, 49, 51, 49, 56, 48, 48
+        ];
 
         using ChunkedPooledBufferWriter writer = new();
         writer.Write(data, IsoFieldFormat.Byte, data.Length);
@@ -119,17 +122,20 @@ public class ChunkedPooledBufferWriterTests
     [Fact]
     public void PurchaseRequest_WriteTo_Test()
     {
-        byte[] expected = [ 48, 49, 57, 51, 49, 50, 48, 48, 114, 48, 5, 65, 0, 129, 152, 2, 49, 
-            57, 55, 56, 48, 49, 51, 49, 48, 48, 48, 48, 48, 48, 57, 57, 57, 57, 52, 57, 48, 
-            48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 52, 49, 51, 53, 55, 48, 55, 
-            50, 51, 50, 50, 49, 51, 48, 48, 48, 48, 48, 48, 50, 50, 50, 53, 48, 55, 50, 51, 
-            50, 50, 49, 51, 48, 48, 66, 48, 48, 49, 48, 49, 54, 48, 48, 49, 52, 67, 50, 48, 
-            48, 53, 53, 52, 49, 48, 54, 50, 56, 48, 49, 51, 49, 50, 52, 48, 48, 49, 32, 32, 
-            32, 48, 51, 48, 48, 4, 0, 1, 0, 0, 0, 0, 82, 85, 48, 48, 48, 48, 49, 50, 51, 52, 
-            53, 54, 49, 51, 48, 54, 48, 92, 48, 46, 48, 48, 54, 52, 51, 117, 60, 119, 196, 
-            137, 60, 35, 120, 48, 49, 1, 48, 50, 57, 70, 48, 49, 48, 53, 76, 48, 49, 50, 92, 
-            50, 48, 46, 49, 50, 53, 92, 50, 48, 46, 53, 53, 92, 52, 49, 51, 46, 53, 55];
-        
+        byte[] expected =
+        [
+            48, 49, 57, 51, 49, 50, 48, 48, 114, 48, 5, 65, 0, 129, 152, 2, 49,
+            57, 55, 56, 48, 49, 51, 49, 48, 48, 48, 48, 48, 48, 57, 57, 57, 57, 52, 57, 48,
+            48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 52, 49, 51, 53, 55, 48, 55,
+            50, 51, 50, 50, 49, 51, 48, 48, 48, 48, 48, 48, 50, 50, 50, 53, 48, 55, 50, 51,
+            50, 50, 49, 51, 48, 48, 66, 48, 48, 49, 48, 49, 54, 48, 48, 49, 52, 67, 50, 48,
+            48, 53, 53, 52, 49, 48, 54, 50, 56, 48, 49, 51, 49, 50, 52, 48, 48, 49, 32, 32,
+            32, 48, 51, 48, 48, 4, 0, 1, 0, 0, 0, 0, 82, 85, 48, 48, 48, 48, 49, 50, 51, 52,
+            53, 54, 49, 51, 48, 54, 48, 92, 48, 46, 48, 48, 54, 52, 51, 117, 60, 119, 196,
+            137, 60, 35, 120, 48, 49, 1, 48, 50, 57, 70, 48, 49, 48, 53, 76, 48, 49, 50, 92,
+            50, 48, 46, 49, 50, 53, 92, 50, 48, 46, 53, 53, 92, 52, 49, 51, 46, 53, 55
+        ];
+
         using ChunkedPooledBufferWriter writer = new();
         PurchaseRequest request = new()
         {
@@ -154,26 +160,23 @@ public class ChunkedPooledBufferWriterTests
             CurrencyCode = 643,
             PinData = pinData,
             SecurityControlInfo = [0x01],
-            /// TODO: Вот это сейчас работает, но нужно перейти на объект
-            /// Аналогичный пример ниже в виде класса
-            /// ProductData = "F0105L012\\20.125\\20.55\\413.57",
             ProductData = new De63
             {
                 ServiceLevel = 'F',
                 ItemCount = 01,
                 FormatId = '0',
-                Items = [
-                     new SaleItem
-                     {
-                         PaymentType = '5',
-                         UnitOfMeasure = 'L',
-                         VatCode = 0,
-                         ProductCode = "12",
-                         Quantity = 20.125m,
-                         UnitPrice = 20.55m,
-                         Amount = 413.57m
-                     },
-                ]
+                // Items = [
+                //      new SaleItem
+                //      {
+                //          PaymentType = '5',
+                //          UnitOfMeasure = 'L',
+                //          VatCode = 0,
+                //          ProductCode = "12",
+                //          Quantity = 20.125m,
+                //          UnitPrice = 20.55m,
+                //          Amount = 413.57m
+                //      },
+                // ]
             }
         };
         request.WriteTo(writer);
@@ -189,7 +192,8 @@ public class ChunkedPooledBufferWriterTests
     public void PurchaseRequest_Parse_Test()
     {
         /// TODO: первые 4 байта скипаем
-        byte[] data = [ /*48, 49, 57, 51,*/ 49, 50, 48, 48, 114, 48, 5, 65, 0, 129, 152, 2, 49,
+        byte[] data1 =
+        [ /*48, 49, 57, 51,*/ 49, 50, 48, 48, 114, 48, 5, 65, 0, 129, 152, 2, 49,
             57, 55, 56, 48, 49, 51, 49, 48, 48, 48, 48, 48, 48, 57, 57, 57, 57, 52, 57, 48,
             48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 52, 49, 51, 53, 55, 48, 55,
             50, 51, 50, 50, 49, 51, 48, 48, 48, 48, 48, 48, 50, 50, 50, 53, 48, 55, 50, 51,
@@ -198,7 +202,19 @@ public class ChunkedPooledBufferWriterTests
             32, 48, 51, 48, 48, 4, 0, 1, 0, 0, 0, 0, 82, 85, 48, 48, 48, 48, 49, 50, 51, 52,
             53, 54, 49, 51, 48, 54, 48, 92, 48, 46, 48, 48, 54, 52, 51, 117, 60, 119, 196,
             137, 60, 35, 120, 48, 49, 1, 48, 50, 57, 70, 48, 49, 48, 53, 76, 48, 49, 50, 92,
-            50, 48, 46, 49, 50, 53, 92, 50, 48, 46, 53, 53, 92, 52, 49, 51, 46, 53, 55];
+            50, 48, 46, 49, 50, 53, 92, 50, 48, 46, 53, 53, 92, 52, 49, 51, 46, 53, 55
+        ];
+
+        byte[] data =
+        [
+            /*48, 49, 54, 56,*/ 49, 50, 48, 48, 114, 48, 5, 65, 0, 129, 152, 2, 49, 57, 55, 56, 48, 49, 51, 49, 48, 48, 48,
+            48, 48, 48, 57, 57, 57, 57, 52, 57, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 52, 49, 51, 53,
+            55, 48, 55, 50, 51, 50, 50, 49, 51, 48, 48, 48, 48, 48, 48, 50, 50, 50, 53, 48, 55, 50, 51, 50, 50, 49, 51,
+            48, 48, 66, 48, 48, 49, 48, 49, 54, 48, 48, 49, 52, 67, 50, 48, 48, 53, 53, 52, 49, 48, 54, 50, 56, 48, 49,
+            51, 49, 50, 52, 48, 48, 49, 32, 32, 32, 48, 51, 48, 48, 4, 0, 1, 0, 0, 0, 0, 82, 85, 48, 48, 48, 48, 49, 50,
+            51, 52, 53, 54, 49, 51, 48, 54, 48, 92, 48, 46, 48, 48, 54, 52, 51, 117, 60, 119, 196, 137, 60, 35, 120, 48,
+            49, 1, 48, 48, 52, 83, 48, 49, 48
+        ];
 
         using ChunkedPooledBufferWriter writer = new();
         writer.Write(data, IsoFieldFormat.Byte, data.Length);
@@ -237,18 +253,18 @@ public class ChunkedPooledBufferWriterTests
                 ServiceLevel = 'F',
                 ItemCount = 01,
                 FormatId = '0',
-                Items = [
-                     new SaleItem
-                     {
-                         PaymentType = '5',
-                         UnitOfMeasure = 'L',
-                         VatCode = 0,
-                         ProductCode = "12",
-                         Quantity = 20.125m,
-                         UnitPrice = 20.55m,
-                         Amount = 413.57m
-                     },
-                ]
+                // Items = [
+                //      new SaleItem
+                //      {
+                //          PaymentType = '5',
+                //          UnitOfMeasure = 'L',
+                //          VatCode = 0,
+                //          ProductCode = "12",
+                //          Quantity = 20.125m,
+                //          UnitPrice = 20.55m,
+                //          Amount = 413.57m
+                //      },
+                // ]
             }
         };
 
@@ -261,35 +277,38 @@ public class ChunkedPooledBufferWriterTests
     [Fact]
     public void PurchaseResponse_WriteTo_Test()
     {
-        byte[] expected = [48, 49, 49, 57, 49, 50, 49, 48, 50, 48, 0, 1, 14, 129, 128, 0, 48, 48, 48, 48, 
-            48, 48, 48, 48, 48, 48, 48, 48, 48, 52, 49, 51, 53, 55, 48, 55, 50, 51, 
-            50, 50, 49, 51, 48, 48, 48, 48, 48, 48, 50, 50, 50, 53, 48, 55, 50, 51, 
-            50, 50, 49, 51, 48, 48, 48, 54, 50, 56, 48, 49, 51, 49, 48, 48, 48, 48, 
-            48, 49, 53, 56, 48, 48, 57, 51, 53, 56, 48, 48, 57, 51, 48, 48, 48, 50, 
-            52, 48, 48, 49, 32, 32, 32, 48, 49, 56, 16, 0, 0, 0, 0, 0, 0, 0, 48, 48, 
-            48, 48, 49, 50, 51, 52, 53, 54, 54, 52, 51];
+        byte[] expected =
+        [
+            48, 49, 49, 57, 49, 50, 49, 48, 50, 48, 0, 1, 14, 129, 128, 0, 48, 48, 48, 48,
+            48, 48, 48, 48, 48, 48, 48, 48, 48, 52, 49, 51, 53, 55, 48, 55, 50, 51,
+            50, 50, 49, 51, 48, 48, 48, 48, 48, 48, 50, 50, 50, 53, 48, 55, 50, 51,
+            50, 50, 49, 51, 48, 48, 48, 54, 50, 56, 48, 49, 51, 49, 48, 48, 48, 48,
+            48, 49, 53, 56, 48, 48, 57, 51, 53, 56, 48, 48, 57, 51, 48, 48, 48, 50,
+            52, 48, 48, 49, 32, 32, 32, 48, 49, 56, 16, 0, 0, 0, 0, 0, 0, 0, 48, 48,
+            48, 48, 49, 50, 51, 52, 53, 54, 54, 52, 51
+        ];
 
         using ChunkedPooledBufferWriter writer = new();
         var response = new PurchaseResponse
         {
-            ProcessingCode = 0,                                             // DE3
-            Amount = 413.57m,                                               // DE4
-            TransmissionDateTime = new DateTime(2025, 07, 23, 22, 13, 00),  // DE7
-            Stan = 22,                                                      // DE11
-            LocalDateTime = new DateTime(2025, 07, 23, 22, 13, 00),         // DE12
-            OriginalAmounts = null,                                         // DE30
-            AcquirerId = "280131",                                          // DE32
-            RetrievalReferenceNumber = 1580093,                             // DE37
-            ApprovalCode = "580093",                                        // DE38
-            ActionCode = 0,                                                 // DE39
-            TerminalId = "24001",                                           // DE41
-            CardAcceptorIdCode = null,                                      // DE42
-            Field48 = new De48PurchaseResponse                              // DE48
+            ProcessingCode = 0, // DE3
+            Amount = 413.57m, // DE4
+            TransmissionDateTime = new DateTime(2025, 07, 23, 22, 13, 00), // DE7
+            Stan = 22, // DE11
+            LocalDateTime = new DateTime(2025, 07, 23, 22, 13, 00), // DE12
+            OriginalAmounts = null, // DE30
+            AcquirerId = "280131", // DE32
+            RetrievalReferenceNumber = 1580093, // DE37
+            ApprovalCode = "580093", // DE38
+            ActionCode = 0, // DE39
+            TerminalId = "24001", // DE41
+            CardAcceptorIdCode = null, // DE42
+            Field48 = new De48PurchaseResponse // DE48
             {
-                BatchSequenceNumber = 123456                                // DE48‑4
+                BatchSequenceNumber = 123456 // DE48‑4
             },
-            CurrencyCode = "643",                                           // DE49
-            TransportData = null                                            // DE59
+            CurrencyCode = "643", // DE49
+            TransportData = null // DE59
         };
 
         response.WriteTo(writer);
@@ -305,13 +324,15 @@ public class ChunkedPooledBufferWriterTests
     public void PurchaseResponse_Parse_Test()
     {
         /// TODO: первые 4 байта скипаем
-        byte[] data = [/*48, 49, 49, 51,*/ 49, 50, 49, 48, 50, 48, 0, 1, 14, 129, 128, 0, 48, 48, 48, 48,
+        byte[] data =
+        [ /*48, 49, 49, 51,*/ 49, 50, 49, 48, 50, 48, 0, 1, 14, 129, 128, 0, 48, 48, 48, 48,
             48, 48, 48, 48, 48, 48, 48, 48, 48, 52, 49, 51, 53, 55, 48, 55, 50, 51,
             50, 50, 49, 51, 48, 48, 48, 48, 48, 48, 50, 50, 50, 53, 48, 55, 50, 51,
             50, 50, 49, 51, 48, 48, 48, 54, 50, 56, 48, 49, 51, 49, 48, 48, 48, 48,
             48, 49, 53, 56, 48, 48, 57, 51, 53, 56, 48, 48, 57, 51, 48, 48, 48, 50,
             52, 48, 48, 49, 32, 32, 32, 48, 49, 56, 16, 0, 0, 0, 0, 0, 0, 0, 48, 48,
-            48, 48, 49, 50, 51, 52, 53, 54, 54, 52, 51];
+            48, 48, 49, 50, 51, 52, 53, 54, 54, 52, 51
+        ];
 
         using ChunkedPooledBufferWriter writer = new();
         writer.Write(data, IsoFieldFormat.Byte, data.Length);
@@ -321,26 +342,26 @@ public class ChunkedPooledBufferWriterTests
 
         var response = new PurchaseResponse
         {
-            ProcessingCode = 0,                                             // DE3
-            Amount = 413.57m,                                               // DE4
-            TransmissionDateTime = new DateTime(2025, 07, 23, 22, 13, 00),  // DE7
-            Stan = 22,                                                      // DE11
-            LocalDateTime = new DateTime(2025, 07, 23, 22, 13, 00),         // DE12
-            OriginalAmounts = null,                                         // DE30
-            AcquirerId = "280131",                                          // DE32
-            RetrievalReferenceNumber = 1580093,                             // DE37
-            ApprovalCode = "580093",                                        // DE38
-            ActionCode = 0,                                                 // DE39
-            TerminalId = "24001",                                           // DE41
+            ProcessingCode = 0, // DE3
+            Amount = 413.57m, // DE4
+            TransmissionDateTime = new DateTime(2025, 07, 23, 22, 13, 00), // DE7
+            Stan = 22, // DE11
+            LocalDateTime = new DateTime(2025, 07, 23, 22, 13, 00), // DE12
+            OriginalAmounts = null, // DE30
+            AcquirerId = "280131", // DE32
+            RetrievalReferenceNumber = 1580093, // DE37
+            ApprovalCode = "580093", // DE38
+            ActionCode = 0, // DE39
+            TerminalId = "24001", // DE41
             /// TODO: подумать об скипе nullble string (сейчас просто закоментил атрибут)
-            CardAcceptorIdCode = null,                                      // DE42
-            Field48 = new De48PurchaseResponse                              // DE48
+            CardAcceptorIdCode = null, // DE42
+            Field48 = new De48PurchaseResponse // DE48
             {
-                BatchSequenceNumber = 123456                                // DE48‑4
+                BatchSequenceNumber = 123456 // DE48‑4
             },
-            CurrencyCode = "643",                                           // DE49
+            CurrencyCode = "643", // DE49
             /// TODO: подумать об скипе nullble string (сейчас просто закоментил атрибут)
-            TransportData = null                                            // DE59
+            TransportData = null // DE59
         };
 
         string expected = JsonSerializer.Serialize(response);

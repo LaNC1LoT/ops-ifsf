@@ -146,28 +146,28 @@ static async Task Purchase()
             ServiceLevel = 'S',
             ItemCount = 1,
             FormatId = '0',
-            Items = [
-                new SaleItem
-                     {
-                         PaymentType = '5',
-                         UnitOfMeasure = 'L',
-                         VatCode = 0,
-                         ProductCode = "12",
-                         Quantity = 20.125m,
-                         UnitPrice = 20.55m,
-                         Amount = 413.57m
-                     },
-                new SaleItem
-                     {
-                         PaymentType = '5',
-                         UnitOfMeasure = 'L',
-                         VatCode = 0,
-                         ProductCode = "12",
-                         Quantity = 20.125m,
-                         UnitPrice = 20.55m,
-                         Amount = 413.57m
-                     },
-            ]
+            // Items = [
+            //     new SaleItem
+            //          {
+            //              PaymentType = '5',
+            //              UnitOfMeasure = 'L',
+            //              VatCode = 0,
+            //              ProductCode = "12",
+            //              Quantity = 20.125m,
+            //              UnitPrice = 20.55m,
+            //              Amount = 413.57m
+            //          },
+            //     new SaleItem
+            //          {
+            //              PaymentType = '5',
+            //              UnitOfMeasure = 'L',
+            //              VatCode = 0,
+            //              ProductCode = "12",
+            //              Quantity = 20.125m,
+            //              UnitPrice = 20.55m,
+            //              Amount = 413.57m
+            //          },
+            // ]
         }
     };
     request.WriteTo(writer);
