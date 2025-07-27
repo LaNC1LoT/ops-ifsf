@@ -483,6 +483,49 @@ public sealed class ChunkedPooledBufferWriter : IDisposable
 
         return value;
     }
+    
+    public int PeekFieldNumber()
+    {
+        if (_readChunk is null) throw new EndOfStreamException();
+
+        var span = _readChunk.Buffer;
+        int available = _readChunk.Length - _readOffset;
+
+        if (available == 0 && _readChunk.Next != null)
+        {
+            span = _readChunk.Next.Buffer;
+            available = _readChunk.Next.Length;
+        }
+
+        if (available < 2) // минимально 2 символа для DE: "01".."99"
+            throw new EndOfStreamException("Not enough data to peek field number");
+
+        byte b1 = span[_readOffset];
+        byte b2 = span[_readOffset + 1];
+
+        if ((b1 < '0' || b1 > '9') || (b2 < '0' || b2 > '9'))
+            throw new FormatException("Invalid characters in field number");
+
+        return (b1 - '0') * 10 + (b2 - '0');
+    }
+    
+    public int GetCurrentOffset()
+    {
+        int offset = 0;
+        var chunk = _head;
+        while (chunk != null && chunk != _readChunk)
+        {
+            offset += chunk.Length;
+            chunk = chunk.Next;
+        }
+
+        if (chunk == _readChunk)
+        {
+            offset += _readOffset;
+        }
+
+        return offset;
+    }
 
     public long ReadLong(IsoFieldFormat format, int maxLength)
     {
@@ -538,6 +581,7 @@ public sealed class ChunkedPooledBufferWriter : IDisposable
             IsoFieldFormat.LLVar => ReadInt(IsoFieldFormat.NumPad, 2),
             IsoFieldFormat.LLLVar => ReadInt(IsoFieldFormat.NumPad, 3),
             IsoFieldFormat.CharPad => maxLength,
+            IsoFieldFormat.CharPadWithOutFixedLength => maxLength,
             _ => throw new FormatException("Unsupported format")
         };
 

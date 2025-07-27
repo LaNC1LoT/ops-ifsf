@@ -94,36 +94,59 @@ internal class Iso8583CodeTemplatesParse
             return nested;
         }
     """;
-    
-   
-    
-            public const string ParseNestedArrayFieldStart = """
-                                                                                                case {FieldNumber}: // DE{FieldNumber} (repeating items)
-                                                                                                    var list{FieldNumber} = new List<{ItemType}>();
-                                                                                                    while (!writer.IsReadFinished())
-                                                                                                    {
-                                                                                                        var item = new {ItemType}();
-                                                                                                        switch (number)
-                                                                                                        {
-                                                                            """;
 
- 
+    public static string ParseNestedMethodWithoutBitmap(int number, string propClass, IEnumerable<string> fieldParsers) => $$"""
+              private static {{propClass}} ParseDE{{number}}(ChunkedPooledBufferWriter writer)
+              {
+                  var length = writer.ReadInt(IsoFieldFormat.NumPad, 3);
+                  var endOffset = writer.GetCurrentOffset() + length;
 
-    // Template to skip the '\' delimiter after certain fields (4,5,6 in our example)
-    public const string ParseArrayFieldSkipDelimiter = """
-                                                                                                        writer.ReadString(IsoFieldFormat.CharPad, 1); // skip delimiter
-                                                                            """;
+                  var nested = new {{propClass}}();
+                  for (int fieldNumber = 1; !writer.IsReadFinished() && writer.GetCurrentOffset() < endOffset; fieldNumber++)
+                  {
+                      switch (fieldNumber)
+                      {
+          {{string.Join("\n", fieldParsers)}}
+                          default:
+                              throw new ArgumentOutOfRangeException(nameof(fieldNumber), "Unknown nested field DE{{number}}");
+                      }
+                  }
 
-    // Template for ending the parsing of an array field: add item to list, skip item separator, assign list, and break
-    public const string ParseNestedArrayFieldEnd = """
-                                                                                                            default:
-                                                                                                                throw new ArgumentOutOfRangeException(nameof(number), $"Unsupported field DE{number}");
-                                                                                                        }
-                                                                                                        list{FieldNumber}.Add(item);
-                                                                                                        if (!writer.IsReadFinished())
-                                                                                                            writer.ReadString(IsoFieldFormat.CharPad, 1); // skip item delimiter '/'
-                                                                                                   }
-                                                                                                   nested.{InnerProp} = list{FieldNumber};
-                                                                                                   break;
-                                                                            """;
+                  return nested;
+              }
+          """;
+
+    public const string ParseNestedArrayFieldStart = $$"""
+                        case {FieldNumber}: // DE{FieldNumber} (repeating items)
+                            var list{FieldNumber} = new List<{ItemType}>();
+                            while (!writer.IsReadFinished())
+                            {
+                                var item = new {ItemType}();
+                                int nestedFieldNumber = 1;
+                                while (!writer.IsReadFinished())
+                                {
+                                    switch (nestedFieldNumber)
+                                    {
+    """;
+
+    public const string ParseArrayFieldSkipDelimiter = $$"""
+                                        writer.ReadString(IsoFieldFormat.CharPad, 1); // skip delimiter
+    """;
+
+    public const string ParseNestedArrayFieldEnd = $$"""
+                                        default:
+                                            throw new ArgumentOutOfRangeException(nameof(nestedFieldNumber), $"Unsupported field DE{FieldNumber}");
+                                    }
+                                    nestedFieldNumber++;
+                                }
+
+                                list{FieldNumber}.Add(item);
+
+                                if (!writer.IsReadFinished())
+                                    writer.ReadString(IsoFieldFormat.CharPad, 1); // skip item delimiter '/'
+                            }
+
+                            nested.{InnerProp} = list{FieldNumber};
+                            break;
+    """;
 }

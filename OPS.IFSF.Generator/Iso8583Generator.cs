@@ -345,7 +345,10 @@ public sealed class Iso8583Generator : IIncrementalGenerator
                 }
 
                 sbNested.AppendLine(
-                    Iso8583CodeTemplatesParse.ParseNestedMethod(f.Number, f.PropertyTypeDisplay, nestedSwitches));
+                    f.WithBitMapArray
+                        ? Iso8583CodeTemplatesParse.ParseNestedMethod(f.Number, f.PropertyTypeDisplay, nestedSwitches)
+                        : Iso8583CodeTemplatesParse.ParseNestedMethodWithoutBitmap(f.Number, f.PropertyTypeDisplay, nestedSwitches)
+                );
             }
             else
             {
