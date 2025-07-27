@@ -114,7 +114,7 @@ public sealed partial class PurchaseRequest
     /// DE53 — Security Related Control Information, LLVAR ..48, M
     /// </summary>
     [IsoField(53, IsoFieldFormat.LLVar, 48)]
-    public byte[] SecurityControlInfo { get; set; } 
+    public byte[] SecurityControlInfo { get; set; }
 
     /// <summary>
     /// DE59 — Transport Data, LLLVAR ..999, O
@@ -125,7 +125,7 @@ public sealed partial class PurchaseRequest
     /// <summary>
     /// DE63 — Product data, LLLVAR ..999, M
     /// </summary>
-    [IsoField(63, IsoFieldFormat.LLLVar, 999)]
+    [IsoField(63, IsoFieldFormat.LLLVar, 999, false)]
     public De63 ProductData { get; set; }
 
     //[IsoField(63, IsoFieldFormat.DelimitedComposite, 999)]
@@ -149,13 +149,13 @@ public class SaleItem
     [IsoField(4, IsoFieldFormat.CharPadWithOutFixedLength, 17)]
     public string ProductCode { get; set; }
 
-    [IsoField(5, IsoFieldFormat.DecFrac3, 9)]
+    [IsoField(5, IsoFieldFormat.DecFrac3, 9, false, '\\')]
     public decimal Quantity { get; set; }
 
-    [IsoField(6, IsoFieldFormat.DecFrac2, 9)]
+    [IsoField(6, IsoFieldFormat.DecFrac2, 9, false, '\\')]
     public decimal UnitPrice { get; set; }
 
-    [IsoField(7, IsoFieldFormat.DecFrac2, 12)]
+    [IsoField(7, IsoFieldFormat.DecFrac2, 12, false, '\\')]
     public decimal Amount { get; set; }
 }
 
@@ -182,7 +182,7 @@ public class De63
     /// <summary>
     /// Сам список товаров
     /// </summary>
-    [IsoField(4, IsoFieldFormat.Array, 0)]
+    [IsoField(4, IsoFieldFormat.Array, 0, false, ' ', '/')]
     public List<SaleItem> Items { get; set; } = [];
 }
 
@@ -227,4 +227,3 @@ public sealed class De48PurchaseRequest
     [IsoField(32, IsoFieldFormat.LLVar, 99)]
     public string VatPercentages { get; set; } = default!;
 }
-

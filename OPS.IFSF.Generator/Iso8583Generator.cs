@@ -105,12 +105,32 @@ public sealed class Iso8583Generator : IIncrementalGenerator
             .FirstOrDefault(f => f.HasConstantValue && Equals(f.ConstantValue, enumValue.Value))?
             .Name!;
         var length = (int)attribute.ConstructorArguments[2].Value!;
+        var withBitMapArray = (bool)attribute.ConstructorArguments[3].Value!;
+        var beforeDelimiter = (char)attribute.ConstructorArguments[4].Value!;
+        var itemSplitter = (char)attribute.ConstructorArguments[5].Value!;
         var isNullable = typeSymbol.NullableAnnotation == NullableAnnotation.Annotated;
+
         var underlyingType = isNullable && typeSymbol is INamedTypeSymbol named && named.IsGenericType
             ? named.TypeArguments[0].Name
             : typeSymbol.Name;
+
         var formatFull = $"{enumValue.Type!.ToDisplayString()}.{formatName}";
-        return new IsoFieldModel(number, propName, formatFull, length, typeSymbol, underlyingType);
+
+        var model = new IsoFieldModel(
+            number, propName, formatFull, length, typeSymbol,
+            underlyingType, withBitMapArray, beforeDelimiter, itemSplitter
+        );
+
+        // 👇 Добавляем сюда имя типа T для List<T>
+        if (typeSymbol is INamedTypeSymbol listSymbol &&
+            listSymbol.Name == "List" &&
+            listSymbol.TypeArguments.Length == 1)
+        {
+            var itemType = listSymbol.TypeArguments[0];
+            model.ItemTypeDisplay = itemType.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat);
+        }
+
+        return model;
     }
 
     #region Writer
@@ -119,6 +139,22 @@ public sealed class Iso8583Generator : IIncrementalGenerator
     {
         var sbMain = new StringBuilder();
         var sbNested = new StringBuilder();
+        static bool IsPrintable(char c) => !char.IsControl(c) && !char.IsSurrogate(c);
+
+        string EscapeCharForCSharp(char c)
+        {
+            return c switch
+            {
+                '\\' => "\\\\",
+                '\"' => "\\\"",
+                '\n' => "\\n",
+                '\r' => "\\r",
+                '\t' => "\\t",
+                '\0' => "\\0",
+                _ when char.IsControl(c) || !IsPrintable(c) => $"\\u{(int)c:X4}",
+                _ => c.ToString()
+            };
+        }
 
         sbMain.AppendLine(Iso8583CodeTemplatesWrite.WriteToHeader(model.Namespace, model.ClassName, model.MessageId));
 
@@ -134,12 +170,10 @@ public sealed class Iso8583Generator : IIncrementalGenerator
 
                 foreach (var nf in f.NestedFields.OrderBy(n => n.Number))
                 {
-                    var fullProp = $"value.{nf.PropertyName}";
                     var fullPropArray = $"value.{nf.PropertyName.Split('.').Last()}";
-                    
+
                     if (nf.IsArray)
                     {
-                        
                         nestedWrites.Add(
                             Iso8583CodeTemplatesWrite.WriteNestedArrayFieldStart
                                 .Replace("{Prop}", fullPropArray)
@@ -157,39 +191,56 @@ public sealed class Iso8583Generator : IIncrementalGenerator
                                 .Replace("{Format}", pf.Format)
                                 .Replace("{Length}", pf.Length.ToString());
 
-                            nestedWrites.Add(baseLine);
-
-                            // Поля 4, 5, 6 — добавляем '\' после себя
-                            if (pf.Number is 4 or 5 or 6)
+                            if (pf.BeforeDelimiter != ' ')
                             {
-                                nestedWrites.Add("               writer.Write(\"\\\\\", IsoFieldFormat.CharPad, 1);");
+                                var escaped = EscapeCharForCSharp(pf.BeforeDelimiter);
+
+                                nestedWrites.Add(
+                                    $"               writer.Write(\"{escaped}\", IsoFieldFormat.CharPad, 1);");
                             }
+
+                            nestedWrites.Add(baseLine);
                         }
 
-                        // 👉 Вставляем '/' только если это не последний item — но В КОНЦЕ айтема
-                        nestedWrites.Add(
-                            $"              if (i < {fullPropArray}.Count - 1) writer.Write(\"/\", IsoFieldFormat.CharPad, 1);");
+                        if (nf.ItemSplitter != ' ')
+                        {
+                            var escaped = EscapeCharForCSharp(nf.ItemSplitter);
 
-                        nestedWrites.Add(
-                            Iso8583CodeTemplatesWrite.WriteNestedArrayFieldEnd(nf.Number,f.Number.ToString())
+                            nestedWrites.Add(
+                                $"              if (i < {fullPropArray}.Count - 1) writer.Write(\"{escaped}\", IsoFieldFormat.CharPad, 1);");
+                        }
+
+                        nestedWrites.Add(f.WithBitMapArray
+                            ? Iso8583CodeTemplatesWrite.WriteNestedArrayFieldEnd(nf.Number, f.Number.ToString())
+                            : Iso8583CodeTemplatesWrite.WriteNestedArrayFieldEndWithOutBitMap(nf.Number,
+                                f.Number.ToString()
+                            )
                         );
 
                         continue;
                     }
+
+                    var writeNestedField = f.WithBitMapArray
+                        ? Iso8583CodeTemplatesWrite.WriteNestedField(
+                            nf.Number, fullPropArray, nf.Format, nf.Length, nf.ToSummary(), f.Number.ToString())
+                        : Iso8583CodeTemplatesWrite.WriteNestedFieldWithOutBitMap(
+                            fullPropArray, nf.Format, nf.Length, nf.ToSummary());
 
                     var fieldCode = nf.IsNullable
                         ? Iso8583CodeTemplatesWrite.WriteNestedNullableField(
                             nf.Number, fullPropArray, nf.Format, nf.Length, nf.ToSummary(), f.Number.ToString(),
                             nf.IsReferenceType ? " != null" : ".HasValue",
                             nf.IsReferenceType ? "" : ".Value")
-                        : Iso8583CodeTemplatesWrite.WriteNestedField(
-                            nf.Number, fullPropArray, nf.Format, nf.Length, nf.ToSummary(), f.Number.ToString());
+                        : writeNestedField;
 
                     nestedWrites.Add(fieldCode);
                 }
 
                 sbNested.AppendLine(
-                    Iso8583CodeTemplatesWrite.WriteNestedMethod(f.Number, f.PropertyTypeDisplay, nestedWrites));
+                    f.WithBitMapArray
+                        ? Iso8583CodeTemplatesWrite.WriteNestedMethod(f.Number, f.PropertyTypeDisplay, nestedWrites)
+                        : Iso8583CodeTemplatesWrite.WriteNestedMethodWithOutBitMap(f.Number, f.PropertyTypeDisplay,
+                            nestedWrites));
             }
             else
             {
@@ -233,36 +284,41 @@ public sealed class Iso8583Generator : IIncrementalGenerator
                 {
                     if (nf.IsArray)
                     {
-                        sbMain.AppendLine(Iso8583CodeTemplatesParse.ParseNestedCall(nf.Number, nf.PropertyName));
-
                         // Begin array field parsing block
                         nestedSwitches.Add(
                             Iso8583CodeTemplatesParse.ParseNestedArrayFieldStart
                                 .Replace("{FieldNumber}", nf.Number.ToString())
-                                .Replace("{ItemType}", "SaleItem")
+                                .Replace("{ItemType}", nf.ItemTypeDisplay ?? "object")
                         );
 
                         // Loop through each sub-field of the item
                         var itemFields = nf.ItemFields.OrderBy(x => x.Number).ToList();
                         for (int j = 0; j < itemFields.Count; j++)
                         {
-                            Iso8583CodeTemplatesParse.ParseNestedCall(f.Number, f.PropertyName);
+                            Iso8583CodeTemplatesParse.ParseNestedCall(nf.Number, nf.PropertyName);
 
                             var pf = itemFields[j];
 
-                            /// TODO: избавиться от этого костыля
                             string? skip = null;
-                            if (pf.Number is 4 or 5 or 6)
+
+                            if (pf.BeforeDelimiter != ' ')
                             {
                                 skip = '\n' + Iso8583CodeTemplatesParse.ParseArrayFieldSkipDelimiter;
                             }
 
                             var readMethod1 = GetReadMethod(pf.PropertyTypeDisplay);
                             string nestedLine1 = readMethod1 is null
-                                ? Iso8583CodeTemplatesParse.ParseUnsupportedField(pf.Number, pf.PropertyName,
-                                    pf.PropertyTypeDisplay)
-                                : Iso8583CodeTemplatesParse.ParseField(pf.Number, pf.PropertyName.Split('.').Last(), "item", readMethod1,
-                                    pf.Format, pf.Length, skip);
+                                ? Iso8583CodeTemplatesParse.ParseUnsupportedField(pf.Number, pf.PropertyName, pf.PropertyTypeDisplay)
+                                : Iso8583CodeTemplatesParse.ParseField(
+                                    pf.Number,
+                                    pf.PropertyName.Split('.').Last(),
+                                    "item",
+                                    readMethod1,
+                                    pf.Format,
+                                    pf.Length,
+                                    skip
+                                );
+
                             skip = null;
                             nestedSwitches.Add(nestedLine1);
                         }
@@ -278,12 +334,12 @@ public sealed class Iso8583Generator : IIncrementalGenerator
                         continue; // move to next nested field
                     }
 
-
                     var readMethod = GetReadMethod(nf.PropertyTypeDisplay);
                     string nestedLine = readMethod is null
                         ? Iso8583CodeTemplatesParse.ParseUnsupportedField(nf.Number, nf.PropertyName,
                             nf.PropertyTypeDisplay)
-                        : Iso8583CodeTemplatesParse.ParseField(nf.Number, nf.PropertyName.Split('.').Last(), "nested", readMethod,
+                        : Iso8583CodeTemplatesParse.ParseField(nf.Number, nf.PropertyName.Split('.').Last(), "nested",
+                            readMethod,
                             nf.Format, nf.Length);
                     nestedSwitches.Add(nestedLine);
                 }
@@ -294,6 +350,7 @@ public sealed class Iso8583Generator : IIncrementalGenerator
             else
             {
                 var readMethod = GetReadMethod(f.PropertyTypeDisplay);
+
                 string line = readMethod is null
                     ? Iso8583CodeTemplatesParse.ParseUnsupportedField(f.Number, f.PropertyName, f.PropertyTypeDisplay)
                     : Iso8583CodeTemplatesParse.ParseField(f.Number, f.PropertyName, "response", readMethod, f.Format,

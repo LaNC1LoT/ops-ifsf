@@ -3,7 +3,7 @@
 namespace OPS.IFSF.Generator;
 
 public sealed class IsoFieldModel(int number, string propertyName
-    , string format, int length, ITypeSymbol typeSymbol, string propertyType)
+    , string format, int length, ITypeSymbol typeSymbol, string propertyType, bool withBitMapArray, Char beforeDelimiter, Char itemSplitter)
 {
     public int Number { get; } = number;
     public string PropertyName { get; } = propertyName;
@@ -14,7 +14,11 @@ public sealed class IsoFieldModel(int number, string propertyName
     public ITypeSymbol TypeSymbol { get; } = typeSymbol;
     public List<IsoFieldModel> NestedFields { get; } = [];
     public List<IsoFieldModel> ItemFields { get; } = new();
+    public Char BeforeDelimiter { get; } = beforeDelimiter;
+    public string? ItemTypeDisplay { get; set; } 
+    public Char ItemSplitter { get; } = itemSplitter;
     public bool IsArray { get; set; }
+    public bool WithBitMapArray { get; set; } = withBitMapArray;
     public bool IsNested => NestedFields.Count > 0;
     public bool IsReferenceType => TypeSymbol.IsReferenceType;
 

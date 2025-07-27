@@ -50,7 +50,8 @@ internal class Iso8583CodeTemplatesParse
 
     public static string ParseField(int number, string prop, string target, string readMethod, string format, int length, string? extentions = null) => $"""
                         case {number}: // DE{number}
-                            {target}.{prop} = writer.Read{readMethod}({format}, {length});{extentions}
+                            {extentions}
+                            {target}.{prop} = writer.Read{readMethod}({format}, {length});
                             break;
     """;
 
