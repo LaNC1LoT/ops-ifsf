@@ -11,7 +11,7 @@ public sealed class Iso8583Generator : IIncrementalGenerator
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
         // TODO: раскоментировать если хочется подебажить генератор
-        System.Diagnostics.Debugger.Launch();
+        //System.Diagnostics.Debugger.Launch();
         var messages = context.SyntaxProvider
             .ForAttributeWithMetadataName(
                 "OPS.IFSF.Abstractions.Attributes.IsoMessageAttribute",

@@ -312,7 +312,7 @@ public sealed class ChunkedPooledBufferWriter : IDisposable
             case IsoFieldFormat.DecFrac3:
                 ArgumentOutOfRangeException.ThrowIfGreaterThan(value.Scale, 3, nameof(value));
                 var c2 = CountDecimalAsciiLength(value, 3);
-                WriteDecimalAscii(value, 2, GetSpan(c2), memberName);
+                WriteDecimalAscii(value, 3, GetSpan(c2), memberName);
                 return;
 
             case IsoFieldFormat.DecFrac2:
