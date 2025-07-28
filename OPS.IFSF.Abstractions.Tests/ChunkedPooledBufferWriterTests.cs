@@ -165,18 +165,18 @@ public class ChunkedPooledBufferWriterTests
                 ServiceLevel = 'F',
                 ItemCount = 01,
                 FormatId = '0',
-                // Items = [
-                //      new SaleItem
-                //      {
-                //          PaymentType = '5',
-                //          UnitOfMeasure = 'L',
-                //          VatCode = 0,
-                //          ProductCode = "12",
-                //          Quantity = 20.125m,
-                //          UnitPrice = 20.55m,
-                //          Amount = 413.57m
-                //      },
-                // ]
+                Items = [
+                     new SaleItem
+                     {
+                         PaymentType = '5',
+                         UnitOfMeasure = 'L',
+                         VatCode = 0,
+                         ProductCode = "12",
+                         Quantity = 20.125m,
+                         UnitPrice = 20.55m,
+                         Amount = 413.57m
+                     },
+                ]
             }
         };
         request.WriteTo(writer);
@@ -192,7 +192,7 @@ public class ChunkedPooledBufferWriterTests
     public void PurchaseRequest_Parse_Test()
     {
         /// TODO: первые 4 байта скипаем
-        byte[] data1 =
+        byte[] data =
         [ /*48, 49, 57, 51,*/ 49, 50, 48, 48, 114, 48, 5, 65, 0, 129, 152, 2, 49,
             57, 55, 56, 48, 49, 51, 49, 48, 48, 48, 48, 48, 48, 57, 57, 57, 57, 52, 57, 48,
             48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 52, 49, 51, 53, 55, 48, 55,
@@ -205,7 +205,7 @@ public class ChunkedPooledBufferWriterTests
             50, 48, 46, 49, 50, 53, 92, 50, 48, 46, 53, 53, 92, 52, 49, 51, 46, 53, 55
         ];
 
-        byte[] data =
+        byte[] data1 =
         [
             /*48, 49, 54, 56,*/ 49, 50, 48, 48, 114, 48, 5, 65, 0, 129, 152, 2, 49, 57, 55, 56, 48, 49, 51, 49, 48, 48, 48,
             48, 48, 48, 57, 57, 57, 57, 52, 57, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 52, 49, 51, 53,
@@ -245,26 +245,23 @@ public class ChunkedPooledBufferWriterTests
             CurrencyCode = 643,
             PinData = pinData,
             SecurityControlInfo = [0x01],
-            /// TODO: Вот это сейчас работает, но нужно перейти на объект
-            /// Аналогичный пример ниже в виде класса
-            /// ProductData = "F0105L012\\20.125\\20.55\\413.57",
             ProductData = new De63
             {
                 ServiceLevel = 'F',
                 ItemCount = 01,
                 FormatId = '0',
-                // Items = [
-                //      new SaleItem
-                //      {
-                //          PaymentType = '5',
-                //          UnitOfMeasure = 'L',
-                //          VatCode = 0,
-                //          ProductCode = "12",
-                //          Quantity = 20.125m,
-                //          UnitPrice = 20.55m,
-                //          Amount = 413.57m
-                //      },
-                // ]
+                Items = [
+                     new SaleItem
+                     {
+                         PaymentType = '5',
+                         UnitOfMeasure = 'L',
+                         VatCode = 0,
+                         ProductCode = "12",
+                         Quantity = 20.125m,
+                         UnitPrice = 20.55m,
+                         Amount = 413.57m
+                     },
+                ]
             }
         };
 

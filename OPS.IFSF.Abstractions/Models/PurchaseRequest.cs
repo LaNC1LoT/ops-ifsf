@@ -182,8 +182,8 @@ public class De63
     /// <summary>
     /// Сам список товаров
     /// </summary>
-    // [IsoField(4, IsoFieldFormat.Array, 0, false, ' ', '/')]
-    // public List<SaleItem> Items { get; set; } = [];
+    [IsoField(4, IsoFieldFormat.Array, 0, false, ' ', '/')]
+    public List<SaleItem> Items { get; set; } = [];
 }
 
 /// <summary>
