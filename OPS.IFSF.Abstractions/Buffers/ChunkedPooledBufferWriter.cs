@@ -88,9 +88,10 @@ public sealed class ChunkedPooledBufferWriter : IDisposable
             Array.Copy(c.Buffer, 0, result, offset, c.Length);
             offset += c.Length;
         }
+
         return result;
     }
-    
+
     public bool IsReadFinished()
     {
         return _readChunk?.Next == null && _readChunk?.Length == _readOffset;
@@ -100,7 +101,8 @@ public sealed class ChunkedPooledBufferWriter : IDisposable
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void Write(DateTime value, IsoFieldFormat format, int maxLength,
-    [CallerArgumentExpression(nameof(value))] string? memberName = null)
+        [CallerArgumentExpression(nameof(value))]
+        string? memberName = null)
     {
         int totalLength = format switch
         {
@@ -195,7 +197,8 @@ public sealed class ChunkedPooledBufferWriter : IDisposable
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void Write(Span<byte> value, IsoFieldFormat format, int maxLength,
-        [CallerArgumentExpression(nameof(value))] string? memberName = null)
+        [CallerArgumentExpression(nameof(value))]
+        string? memberName = null)
     {
         ArgumentOutOfRangeException.ThrowIfGreaterThan(value.Length, maxLength, memberName);
 
@@ -208,7 +211,9 @@ public sealed class ChunkedPooledBufferWriter : IDisposable
                 break;
             default:
                 throw new ArgumentException("Unsupported format for byte span", nameof(format));
-        };
+        }
+
+        ;
 
         int remaining = value.Length;
         int offset = 0;
@@ -228,7 +233,8 @@ public sealed class ChunkedPooledBufferWriter : IDisposable
     }
 
     public void Write(char value, IsoFieldFormat format, int maxLength,
-         [CallerArgumentExpression(nameof(value))] string? memberName = null)
+        [CallerArgumentExpression(nameof(value))]
+        string? memberName = null)
     {
         ReadOnlySpan<char> span = [value];
         Write(span, format, maxLength, memberName);
@@ -236,7 +242,8 @@ public sealed class ChunkedPooledBufferWriter : IDisposable
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void Write(ReadOnlySpan<char> value, IsoFieldFormat format, int maxLength,
-        [CallerArgumentExpression(nameof(value))] string? memberName = null)
+        [CallerArgumentExpression(nameof(value))]
+        string? memberName = null)
     {
         //ArgumentException.ThrowIfNullOrEmpty(value, memberName);
         ArgumentOutOfRangeException.ThrowIfZero(value.Length, memberName);
@@ -259,7 +266,7 @@ public sealed class ChunkedPooledBufferWriter : IDisposable
             IsoFieldFormat.CharPadWithOutFixedLength => value.Length, // ⬅️ ключевая разница
             _ => value.Length
         };
-        
+
         if (prefixLen > 0)
         {
             WriteNumberPadChunkedDirect(contentLength, prefixLen);
@@ -282,7 +289,7 @@ public sealed class ChunkedPooledBufferWriter : IDisposable
                 // 👇 убираем паддинг только если CharPad2
                 if (offset + i >= value.Length && format == IsoFieldFormat.CharPadWithOutFixedLength)
                     break;
-                
+
                 target[i] = (byte)c;
             }
 
@@ -293,7 +300,8 @@ public sealed class ChunkedPooledBufferWriter : IDisposable
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void Write(decimal value, IsoFieldFormat format, int maxLength,
-        [CallerArgumentExpression(nameof(value))] string? memberName = null)
+        [CallerArgumentExpression(nameof(value))]
+        string? memberName = null)
     {
         ArgumentOutOfRangeException.ThrowIfNegative(value);
 
@@ -408,14 +416,13 @@ public sealed class ChunkedPooledBufferWriter : IDisposable
         ArgumentNullException.ThrowIfNull(_readChunk);
     }
 
-    public decimal ReadDecimal(IsoFieldFormat format, int maxLength)
+    public decimal ReadDecimal(IsoFieldFormat format, int maxLength, char? untilDelimiter = null)
     {
-        ValidateRead(maxLength);
-
         Span<byte> buffer = stackalloc byte[maxLength];
         int written = 0;
+        bool hasDot = false;
 
-        while (written < maxLength)
+        while (true)
         {
             if (_readChunk is null)
                 throw new EndOfStreamException();
@@ -429,30 +436,51 @@ public sealed class ChunkedPooledBufferWriter : IDisposable
                 continue;
             }
 
-            int toRead = Math.Min(maxLength - written, available);
-            var span = _readChunk.Buffer.AsSpan(_readOffset, toRead);
-
-            for (int i = 0; i < toRead; i++)
+            var span = _readChunk.Buffer.AsSpan(_readOffset, available);
+            for (int i = 0; i < available; i++)
             {
                 byte b = span[i];
-                if (b < '0' || b > '9')
-                    throw new FormatException($"Invalid char '{(char)b}' in decimal");
 
-                buffer[written++] = b;
+                // если встретили delimiter — остановим чтение
+                if (untilDelimiter.HasValue && b == (byte)untilDelimiter.Value)
+                {
+                    _readOffset += i + 1; // включаем delimiter в offset, но не пишем его
+                    goto PARSE;
+                }
+
+                // проверка ДО записи!
+                if (written >= buffer.Length)
+                    throw new FormatException("Decimal value too long");
+
+                if (b >= '0' && b <= '9')
+                {
+                    buffer[written++] = b;
+                }
+                else if (b == '.' && !hasDot)
+                {
+                    buffer[written++] = b;
+                    hasDot = true;
+                }
+                else
+                {
+                    throw new FormatException($"Invalid char '{(char)b}' in decimal");
+                }
             }
 
-            _readOffset += toRead;
+            _readOffset += available;
         }
 
+        PARSE:
         var str = System.Text.Encoding.ASCII.GetString(buffer.Slice(0, written));
 
-        if (!long.TryParse(str, out var rawValue))
-            throw new FormatException($"Failed to parse integer decimal from '{str}'");
+        if (decimal.TryParse(str, System.Globalization.NumberStyles.AllowDecimalPoint,
+                System.Globalization.CultureInfo.InvariantCulture, out var result))
+            return result;
 
-        if (format == IsoFieldFormat.NumDecPad)
-            return rawValue / 100m; // 👈 вот тут волшебство
+        if (!hasDot && long.TryParse(str, out var rawValue) && format == IsoFieldFormat.NumDecPad)
+            return rawValue / 100m;
 
-        throw new ArgumentOutOfRangeException(nameof(format), $"Unsupported decimal format: {format}");
+        throw new FormatException($"Failed to parse decimal from '{str}'");
     }
 
 
@@ -462,6 +490,7 @@ public sealed class ChunkedPooledBufferWriter : IDisposable
         {
             throw new ArgumentOutOfRangeException(nameof(format));
         }
+
         ValidateRead(maxLength);
 
         int value = 0;
@@ -493,7 +522,7 @@ public sealed class ChunkedPooledBufferWriter : IDisposable
 
         return value;
     }
-    
+
     public int PeekFieldNumber()
     {
         if (_readChunk is null) throw new EndOfStreamException();
@@ -518,7 +547,7 @@ public sealed class ChunkedPooledBufferWriter : IDisposable
 
         return (b1 - '0') * 10 + (b2 - '0');
     }
-    
+
     public int GetCurrentOffset()
     {
         int offset = 0;
@@ -543,6 +572,7 @@ public sealed class ChunkedPooledBufferWriter : IDisposable
         {
             throw new ArgumentOutOfRangeException(nameof(format));
         }
+
         ValidateRead(maxLength);
 
         long value = 0;
@@ -655,11 +685,16 @@ public sealed class ChunkedPooledBufferWriter : IDisposable
 
         long raw = ReadLong(IsoFieldFormat.NumPad, length);
 
-        int second = (int)(raw % 100); raw /= 100;
-        int minute = (int)(raw % 100); raw /= 100;
-        int hour = (int)(raw % 100); raw /= 100;
-        int day = (int)(raw % 100); raw /= 100;
-        int month = (int)(raw % 100); raw /= 100;
+        int second = (int)(raw % 100);
+        raw /= 100;
+        int minute = (int)(raw % 100);
+        raw /= 100;
+        int hour = (int)(raw % 100);
+        raw /= 100;
+        int day = (int)(raw % 100);
+        raw /= 100;
+        int month = (int)(raw % 100);
+        raw /= 100;
 
         int year = format == IsoFieldFormat.DateTimeLong
             ? 2000 + (int)(raw % 100)
@@ -692,7 +727,6 @@ public sealed class ChunkedPooledBufferWriter : IDisposable
         }
 
         throw new NotSupportedException("Cannot return span across chunk boundaries");
-
     }
 
     #endregion
@@ -713,6 +747,7 @@ public sealed class ChunkedPooledBufferWriter : IDisposable
     }
 
     private bool _disposed;
+
     public void Dispose()
     {
         if (_disposed)

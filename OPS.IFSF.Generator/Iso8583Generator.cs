@@ -263,6 +263,22 @@ public sealed class Iso8583Generator : IIncrementalGenerator
     #endregion
 
     #region Parse
+    
+    private static string EscapeCharForCSharp(char c)
+    {
+        return c switch
+        {
+            '\\' => "\\\\",
+            '\'' => "\\\'",
+            '\"' => "\\\"",
+            '\n' => "\\n",
+            '\r' => "\\r",
+            '\t' => "\\t",
+            '\0' => "\\0",
+            _ when char.IsControl(c) || !char.IsLetterOrDigit(c) => $"\\u{(int)c:X4}",
+            _ => c.ToString()
+        };
+    }
 
 private static string GenerateParse(MessageClassModel model)
 {
@@ -284,7 +300,57 @@ private static string GenerateParse(MessageClassModel model)
             foreach (var nf in f.NestedFields.OrderBy(n => n.Number))
             {
                 // 👇 пока пропускаем массив — вернёмся позже
-                if (nf.IsArray) continue;
+                if (nf.IsArray)
+                {
+                    var nestedArrayFieldParsers = new List<string>();
+
+                    foreach (var itemField in nf.ItemFields.OrderBy(x => x.Number))
+                    {
+                        var itemReadMethod = GetReadMethod(itemField.PropertyTypeDisplay);
+
+                        string? beforeDelimiterLine = null;
+                        string? delimiter = null;
+                        if (itemField.BeforeDelimiter != ' ')
+                        {
+                            var escaped = EscapeCharForCSharp(itemField.BeforeDelimiter);
+                            delimiter = $", '{escaped}'";
+                        }
+
+                        string itemFieldLine = itemReadMethod is null
+                            ? Iso8583CodeTemplatesParse.ParseUnsupportedField(
+                                itemField.Number,
+                                itemField.PropertyName,
+                                itemField.PropertyTypeDisplay)
+                            : Iso8583CodeTemplatesParse.ParseField(
+                                itemField.Number,
+                                itemField.PropertyName.Split('.').Last(),
+                                "item",
+                                itemReadMethod,
+                                itemField.Format,
+                                itemField.Length,
+                                null,
+                                delimiter
+                            );
+
+                        nestedArrayFieldParsers.Add(itemFieldLine);
+                    }
+
+
+                    nestedParsers.Add(
+                        Iso8583CodeTemplatesParse.ParseNestedArrayFieldStart
+                            .Replace("{FieldNumber}", nf.Number.ToString())
+                            .Replace("{ItemType}", nf.ItemTypeDisplay ?? "object")
+                    );
+
+                    nestedParsers.Add(string.Join("\n", nestedArrayFieldParsers));
+
+                    nestedParsers.Add(Iso8583CodeTemplatesParse.ParseNestedArrayFieldEnd
+                        .Replace("{FieldNumber}", nf.Number.ToString())
+                        .Replace("{InnerProp}", nf.PropertyName.Split('.').Last())
+                    );
+
+                    continue;
+                }
 
                 var readMethod = GetReadMethod(nf.PropertyTypeDisplay);
 

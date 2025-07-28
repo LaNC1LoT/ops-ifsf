@@ -48,12 +48,13 @@ internal class Iso8583CodeTemplatesParse
     }
     """;
 
-    public static string ParseField(int number, string prop, string target, string readMethod, string format, int length, string? extentions = null) => $"""
+    public static string ParseField(int number, string prop, string target, string readMethod, string format, int length, string? extentions = null, string? delimiter = null) => $"""
                         case {number}: // DE{number}
                             {extentions}
-                            {target}.{prop} = writer.Read{readMethod}({format}, {length});
+                            {target}.{prop} = writer.Read{readMethod}({format}, {length} {delimiter});
                             break;
     """;   
+    
 
     public static string ParseUnsupportedField(int number, string prop, string type) => $"""
                         case {number}: // DE{number}
