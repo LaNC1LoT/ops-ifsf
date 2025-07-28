@@ -23,7 +23,7 @@ public sealed partial class PurchaseRequest
     /// <summary>
     /// DE4 — Amount, transaction, num(12) with 2 decimals, M
     /// </summary>
-    [IsoField(4, IsoFieldFormat.DecFrac2, 12)]
+    [IsoField(4, IsoFieldFormat.NumDecPad, 12)]
     public decimal Amount { get; set; }
 
     /// <summary>

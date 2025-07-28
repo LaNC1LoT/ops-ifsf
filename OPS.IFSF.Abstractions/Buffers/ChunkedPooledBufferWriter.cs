@@ -435,7 +435,7 @@ public sealed class ChunkedPooledBufferWriter : IDisposable
             for (int i = 0; i < toRead; i++)
             {
                 byte b = span[i];
-                if (!((b >= '0' && b <= '9') || b == '.'))
+                if (b < '0' || b > '9')
                     throw new FormatException($"Invalid char '{(char)b}' in decimal");
 
                 buffer[written++] = b;
@@ -446,10 +446,13 @@ public sealed class ChunkedPooledBufferWriter : IDisposable
 
         var str = System.Text.Encoding.ASCII.GetString(buffer.Slice(0, written));
 
-        if (!decimal.TryParse(str, System.Globalization.NumberStyles.Number, System.Globalization.CultureInfo.InvariantCulture, out var result))
-            throw new FormatException($"Failed to parse decimal from '{str}'");
+        if (!long.TryParse(str, out var rawValue))
+            throw new FormatException($"Failed to parse integer decimal from '{str}'");
 
-        return result;
+        if (format == IsoFieldFormat.NumDecPad)
+            return rawValue / 100m; // 👈 вот тут волшебство
+
+        throw new ArgumentOutOfRangeException(nameof(format), $"Unsupported decimal format: {format}");
     }
 
 
