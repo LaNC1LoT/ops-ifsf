@@ -143,15 +143,22 @@ namespace OPS.IFSF.Abstractions.Buffers
             return Encoding.ASCII.GetString(buffer.Slice(0, length)); // ✅ сохраняет '0'
         }
         
-        public string ReadString(IsoFieldFormat format, int maxLength)
+        public string ReadString(IsoFieldFormat format, int maxLength, char? fieldDelimiter = null)
         {
+            if (format == IsoFieldFormat.CharPadWithOutFixedLength)
+            {
+                if (fieldDelimiter == null)
+                    throw new ArgumentNullException(nameof(fieldDelimiter), "Delimiter is required for CharPadWithOutFixedLength");
+
+                return ReadStringUntilDelimiter(fieldDelimiter.Value, maxLength);
+            }
+
             int length = format switch
             {
                 IsoFieldFormat.LVar => ReadInt(1),
                 IsoFieldFormat.LLVar => ReadInt(2),
                 IsoFieldFormat.LLLVar => ReadInt(3),
                 IsoFieldFormat.CharPad => maxLength,
-                IsoFieldFormat.CharPadWithOutFixedLength => maxLength,
                 _ => throw new FormatException("Unsupported format")
             };
 
