@@ -189,6 +189,65 @@ public class ChunkedPooledBufferWriterTests
     }
 
     [Fact]
+    public void De63_Parse_Test()
+    {
+
+        // Строим строку поля DE63
+        var de63Payload = "S020" + // ServiceLevel + ItemCount + FormatId
+                          "5L012\\20.125\\20.55\\413.57/" + // SaleItem 1
+                          "5L012\\20.125\\20.55\\413.57";   // SaleItem 2
+
+        var fullString = de63Payload.Length.ToString("D3") + de63Payload;
+
+        Console.WriteLine("== DE63 Test Start ==");
+        Console.WriteLine($"Payload string: {fullString}");
+        Console.WriteLine($"Payload bytes: {BitConverter.ToString(System.Text.Encoding.ASCII.GetBytes(fullString))}");
+
+        using var writer = new ChunkedPooledBufferWriter();
+        writer.Write(System.Text.Encoding.ASCII.GetBytes(fullString), IsoFieldFormat.Byte, fullString.Length);
+        writer.BeginRead();
+
+        De63 result;
+
+        try
+        {
+            result = De63Class.ParseDE63(writer);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine("Exception during parsing:");
+            Console.WriteLine(ex.ToString());
+            throw;
+        }
+
+        Assert.NotNull(result.Items);
+        Assert.Equal(2, result.Items.Count);
+
+        int index = 1;
+        foreach (var item in result.Items)
+        {
+            Console.WriteLine($"--- Item {index++} ---");
+            Console.WriteLine($"PaymentType: {item.PaymentType}");
+            Console.WriteLine($"UnitOfMeasure: {item.UnitOfMeasure}");
+            Console.WriteLine($"VatCode: {item.VatCode}");
+            Console.WriteLine($"ProductCode: {item.ProductCode}");
+            Console.WriteLine($"Quantity: {item.Quantity}");
+            Console.WriteLine($"UnitPrice: {item.UnitPrice}");
+            Console.WriteLine($"Amount: {item.Amount}");
+
+            Assert.Equal('5', item.PaymentType);
+            Assert.Equal('L', item.UnitOfMeasure);
+            Assert.Equal(0, item.VatCode);
+            Assert.Equal("12", item.ProductCode);
+            Assert.Equal(20.125m, item.Quantity);
+            Assert.Equal(20.55m, item.UnitPrice);
+            Assert.Equal(413.57m, item.Amount);
+        }
+
+        Console.WriteLine("== DE63 Test End ==");
+    }
+
+    [Fact]
     public void PurchaseRequest_Parse_Test()
     {
         /// TODO: первые 4 байта скипаем

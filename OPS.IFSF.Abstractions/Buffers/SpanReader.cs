@@ -2,6 +2,7 @@ using System;
 using OPS.IFSF.Abstractions.Attributes;
 using System.Buffers;
 using System.Globalization;
+using System.Text;
 
 namespace OPS.IFSF.Abstractions.Buffers
 {
@@ -65,6 +66,34 @@ namespace OPS.IFSF.Abstractions.Buffers
             var str = System.Text.Encoding.ASCII.GetString(bytes);
             return int.Parse(str);
         }
+        private ReadOnlySpan<byte> ReadBytesUntilDelimiter(char delimiter, int maxLength)
+        {
+            int start = _position;
+            int end = start;
+    
+            while (end < _span.Length && end - start < maxLength)
+            {
+                if (_span[end] == (byte)delimiter)
+                    break;
+
+                end++;
+            }
+
+            var result = _span.Slice(start, end - start);
+            _position = (end < _span.Length && _span[end] == (byte)delimiter) ? end + 1 : end;
+
+            return result;
+        }
+        public decimal ReadDecimal(IsoFieldFormat format, int maxLength, char untilDelimiter)
+        {
+            var bytes = ReadBytesUntilDelimiter(untilDelimiter, maxLength);
+    
+            var str = System.Text.Encoding.ASCII.GetString(bytes);
+            if (!decimal.TryParse(str, NumberStyles.Number, CultureInfo.InvariantCulture, out var result))
+                throw new FormatException($"Invalid decimal format: '{str}'");
+
+            return result;
+        }
 
         public int ReadInt(IsoFieldFormat format, int maxLength)
         {
@@ -96,7 +125,24 @@ namespace OPS.IFSF.Abstractions.Buffers
         {
             return ReadDecimal(maxLength);
         }
+        
+        public string ReadStringUntilDelimiter(char delimiter, int maxLength)
+        {
+            Span<byte> buffer = stackalloc byte[maxLength];
+            int length = 0;
 
+            while (!IsEnd && length < maxLength)
+            {
+                byte b = ReadByte();
+                if (b == delimiter)
+                    break;
+
+                buffer[length++] = b;
+            }
+
+            return Encoding.ASCII.GetString(buffer.Slice(0, length)); // ✅ сохраняет '0'
+        }
+        
         public string ReadString(IsoFieldFormat format, int maxLength)
         {
             int length = format switch

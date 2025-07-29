@@ -1,8 +1,10 @@
 ﻿using OPS.IFSF.Abstractions.Attributes;
 using System;
 using System.Buffers;
+using System.Globalization;
 using System.Net.Sockets;
 using System.Runtime.CompilerServices;
+using System.Text;
 
 namespace OPS.IFSF.Abstractions.Buffers;
 
@@ -205,7 +207,14 @@ public sealed class ChunkedPooledBufferWriter : IDisposable
         switch (format)
         {
             case IsoFieldFormat.Byte:
-                break;
+                // Без префикса, но не использовать TryGetAvailableSpan + Advance
+            {
+                EnsureChunk(value.Length); // резервируем место
+                var span = _tail!.Buffer.AsSpan(_tail.Length, value.Length);
+                value.CopyTo(span);
+                Advance(value.Length); // только 1 раз
+                return;
+            }
             case IsoFieldFormat.LLVar:
                 WriteNumberPadChunkedDirect(value.Length, 2);
                 break;
@@ -416,94 +425,197 @@ public sealed class ChunkedPooledBufferWriter : IDisposable
         ArgumentNullException.ThrowIfNull(_readChunk);
     }
 
-public decimal ReadDecimal(IsoFieldFormat format, int maxLength, char fieldDelimiter, char itemDelimiter)
-{
-    Span<byte> buffer = stackalloc byte[maxLength];
-    int written = 0;
-    bool hasDot = false;
-
-    while (true)
+    public decimal ReadDecimal(IsoFieldFormat format, int maxLength, char? untilDelimiter = null)
     {
+        Span<byte> buffer = stackalloc byte[maxLength];
+        int written = 0;
+        bool hasDot = false;
+        var trace = new List<byte>();
+        var log = new StringBuilder();
+
+        log.AppendLine(
+            $"[START] ReadDecimal: Format={format}, MaxLength={maxLength}, Delimiter={(untilDelimiter.HasValue ? $"'{untilDelimiter}'" : "null")}");
+
+        // 👉 Удалим лишний разделитель, оставшийся от предыдущего чтения
+        if (untilDelimiter.HasValue && _readChunk is not null)
+        {
+            byte current = _readChunk.Buffer[_readOffset];
+            log.AppendLine($"Peek first byte: 0x{current:X2}");
+
+            if (current == (byte)untilDelimiter.Value)
+            {
+                _readOffset++;
+                log.AppendLine($"Skipped delimiter '{untilDelimiter}' at start");
+            }
+        }
+
         if (_readChunk is null)
-            throw new EndOfStreamException();
-
-        int available = _readChunk.Length - _readOffset;
-
-        if (available == 0)
         {
-            _readChunk = _readChunk.Next;
-            _readOffset = 0;
-            continue;
+            log.AppendLine("[ERROR] _readChunk is null at method entry");
+        }
+        else
+        {
+            int remaining = _readChunk.Length - _readOffset;
+            var preview = _readChunk.Buffer.AsSpan(_readOffset, Math.Min(16, remaining)).ToArray();
+            log.AppendLine($"_readChunk.Length = {_readChunk.Length}, _readOffset = {_readOffset}");
+            log.AppendLine($"Preview bytes: {BitConverter.ToString(preview)}");
         }
 
-        var span = _readChunk.Buffer.AsSpan(_readOffset, available);
-        for (int i = 0; i < available; i++)
+        try
         {
-            byte b = span[i];
-
-            // Прерываем по любому разделителю
-            if (b == (byte)fieldDelimiter || b == (byte)itemDelimiter)
+            if (format == IsoFieldFormat.NumDecPad)
             {
-                _readOffset += i + 1;
-                goto PARSE;
+                ValidateRead(maxLength);
+                long value = 0;
+
+                while (maxLength > 0)
+                {
+                    if (_readChunk is null)
+                        throw new EndOfStreamException("Unexpected end of stream while reading fixed-length decimal.");
+
+                    var span = _readChunk.Buffer;
+                    int available = _readChunk.Length - _readOffset;
+
+                    if (available == 0)
+                    {
+                        _readChunk = _readChunk.Next;
+                        _readOffset = 0;
+                        continue;
+                    }
+
+                    int take = Math.Min(maxLength, available);
+                    for (int i = 0; i < take; i++)
+                    {
+                        byte b = span[_readOffset++];
+                        trace.Add(b);
+
+                        if ((uint)(b - '0') > 9)
+                        {
+                            int errOffset = GetCurrentOffset() + i;
+                            string traceStr = BitConverter.ToString(trace.ToArray());
+                            throw new FormatException(
+                                $"Invalid char '{(char)b}' (0x{b:X2}) in decimal at offset {errOffset}. Trace: {traceStr}");
+                        }
+
+                        value = value * 10 + (b - '0');
+                    }
+
+                    maxLength -= take;
+                }
+
+                return value / 100m;
             }
 
-            if (b == 0x00)
-                continue;
+            // 👉 DecFrac2 / DecFrac3
+            while (true)
+            {
+                if (_readChunk is null)
+                {
+                    log.AppendLine("[EOF] _readChunk is null before delimiter");
+                    goto PARSE;
+                }
 
-            if (written >= buffer.Length)
-                throw new FormatException("Decimal too long");
+                int available = _readChunk.Length - _readOffset;
 
-            if (b >= '0' && b <= '9')
-            {
-                buffer[written++] = b;
+                if (available == 0)
+                {
+                    _readChunk = _readChunk.Next;
+                    _readOffset = 0;
+                    continue;
+                }
+
+                var span = _readChunk.Buffer.AsSpan(_readOffset, available);
+                for (int i = 0; i < available; i++)
+                {
+                    byte b = span[i];
+                    trace.Add(b);
+
+                    if (b == 0x00)
+                    {
+                        log.AppendLine($"Skipped 0x00 at offset +{i}");
+                        continue;
+                    }
+
+                    if (untilDelimiter.HasValue && b == (byte)untilDelimiter.Value)
+                    {
+                        _readOffset += i + 1;
+                        log.AppendLine($"Found delimiter '{untilDelimiter}' at +{i}, advancing to {_readOffset}");
+                        goto PARSE;
+                    }
+
+                    if (written >= maxLength)
+                    {
+                        string traceStr = BitConverter.ToString(trace.ToArray());
+                        throw new FormatException($"Decimal value too long (max {maxLength}). Trace: {traceStr}");
+                    }
+
+                    if (b >= '0' && b <= '9')
+                    {
+                        buffer[written++] = b;
+                    }
+                    else if (b == '.' && !hasDot)
+                    {
+                        buffer[written++] = b;
+                        hasDot = true;
+                    }
+                    else
+                    {
+                        int errOffset = GetCurrentOffset() + i;
+                        string traceStr = BitConverter.ToString(trace.ToArray());
+                        throw new FormatException(
+                            $"Invalid char '{(char)b}' (0x{b:X2}) in decimal at offset {errOffset}. Trace: {traceStr}");
+                    }
+                }
+
+                _readOffset += available;
             }
-            else if (b == '.' && !hasDot)
+
+            PARSE:
+            if (written == 0)
             {
-                buffer[written++] = b;
-                hasDot = true;
+                string traceStr = trace.Count == 0 ? "<empty>" : BitConverter.ToString(trace.ToArray());
+                log.AppendLine($"[ERROR] Empty decimal field. Offset={_readOffset}, Trace: {traceStr}");
+
+                if (_readChunk != null)
+                {
+                    var remaining =
+                        _readChunk.Buffer.AsSpan(_readOffset, Math.Min(16, _readChunk.Length - _readOffset));
+                    log.AppendLine($"Remaining buffer: {BitConverter.ToString(remaining.ToArray())}");
+                }
+                else
+                {
+                    log.AppendLine("No remaining _readChunk");
+                }
+
+                throw new FormatException($"Empty decimal field. Trace: {traceStr}. Log:\n{log}");
             }
-            else
+
+            var str = Encoding.ASCII.GetString(buffer.Slice(0, written));
+            if (decimal.TryParse(str, NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out var result))
             {
-                int errOffset = GetCurrentOffset() + i;
-                throw new FormatException($"Invalid char '{(char)b}' (0x{b:X2}) in decimal at offset {errOffset}");
+                log.AppendLine($"[OK] Parsed value: {result}");
+                return result;
             }
+
+            string finalTrace = BitConverter.ToString(trace.ToArray());
+            throw new FormatException($"Failed to parse decimal from '{str}'. Trace: {finalTrace}. Log:\n{log}");
         }
-
-        _readOffset += available;
+        catch (Exception ex)
+        {
+            throw new FormatException($"{ex.Message}\n--- Internal Log ---\n{log}", ex);
+        }
     }
-
-PARSE:
-    if (written == 0)
-        throw new FormatException("Empty decimal");
-
-    var str = System.Text.Encoding.ASCII.GetString(buffer.Slice(0, written));
-
-    if (format is IsoFieldFormat.DecFrac2 or IsoFieldFormat.DecFrac3)
-    {
-        if (decimal.TryParse(str, System.Globalization.NumberStyles.AllowDecimalPoint,
-                System.Globalization.CultureInfo.InvariantCulture, out var result))
-            return result;
-    }
-
-    if (!hasDot && format == IsoFieldFormat.NumDecPad && long.TryParse(str, out var rawVal))
-    {
-        return rawVal / 100m;
-    }
-
-    throw new FormatException($"Failed to parse decimal from '{str}'");
-}
 
     public int ReadInt(IsoFieldFormat format, int maxLength)
     {
         if (format != IsoFieldFormat.NumPad)
-        {
             throw new ArgumentOutOfRangeException(nameof(format));
-        }
 
         ValidateRead(maxLength);
 
         int value = 0;
+        var trace = new List<byte>();
+
         while (maxLength > 0)
         {
             if (_readChunk is null) throw new EndOfStreamException();
@@ -523,7 +635,16 @@ PARSE:
             for (int i = 0; i < take; i++)
             {
                 byte b = span[_readOffset++];
-                if ((uint)(b - '0') > 9) throw new FormatException();
+                trace.Add(b);
+
+                if ((uint)(b - '0') > 9)
+                {
+                    var offset = GetCurrentOffset();
+                    var hex = BitConverter.ToString(trace.ToArray());
+                    throw new FormatException(
+                        $"Invalid character '{(char)b}' (0x{b:X2}) in integer field at offset {offset - trace.Count + 1 + i}. Bytes: {hex}");
+                }
+
                 value = value * 10 + (b - '0');
             }
 
