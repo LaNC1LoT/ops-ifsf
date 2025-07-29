@@ -416,73 +416,83 @@ public sealed class ChunkedPooledBufferWriter : IDisposable
         ArgumentNullException.ThrowIfNull(_readChunk);
     }
 
-    public decimal ReadDecimal(IsoFieldFormat format, int maxLength, char? untilDelimiter = null)
+public decimal ReadDecimal(IsoFieldFormat format, int maxLength, char fieldDelimiter, char itemDelimiter)
+{
+    Span<byte> buffer = stackalloc byte[maxLength];
+    int written = 0;
+    bool hasDot = false;
+
+    while (true)
     {
-        Span<byte> buffer = stackalloc byte[maxLength];
-        int written = 0;
-        bool hasDot = false;
+        if (_readChunk is null)
+            throw new EndOfStreamException();
 
-        while (true)
+        int available = _readChunk.Length - _readOffset;
+
+        if (available == 0)
         {
-            if (_readChunk is null)
-                throw new EndOfStreamException();
-
-            int available = _readChunk.Length - _readOffset;
-
-            if (available == 0)
-            {
-                _readChunk = _readChunk.Next;
-                _readOffset = 0;
-                continue;
-            }
-
-            var span = _readChunk.Buffer.AsSpan(_readOffset, available);
-            for (int i = 0; i < available; i++)
-            {
-                byte b = span[i];
-
-                // если встретили delimiter — остановим чтение
-                if (untilDelimiter.HasValue && b == (byte)untilDelimiter.Value)
-                {
-                    _readOffset += i + 1; // включаем delimiter в offset, но не пишем его
-                    goto PARSE;
-                }
-
-                // проверка ДО записи!
-                if (written >= buffer.Length)
-                    throw new FormatException("Decimal value too long");
-
-                if (b >= '0' && b <= '9')
-                {
-                    buffer[written++] = b;
-                }
-                else if (b == '.' && !hasDot)
-                {
-                    buffer[written++] = b;
-                    hasDot = true;
-                }
-                else
-                {
-                    throw new FormatException($"Invalid char '{(char)b}' in decimal");
-                }
-            }
-
-            _readOffset += available;
+            _readChunk = _readChunk.Next;
+            _readOffset = 0;
+            continue;
         }
 
-        PARSE:
-        var str = System.Text.Encoding.ASCII.GetString(buffer.Slice(0, written));
+        var span = _readChunk.Buffer.AsSpan(_readOffset, available);
+        for (int i = 0; i < available; i++)
+        {
+            byte b = span[i];
 
+            // Прерываем по любому разделителю
+            if (b == (byte)fieldDelimiter || b == (byte)itemDelimiter)
+            {
+                _readOffset += i + 1;
+                goto PARSE;
+            }
+
+            if (b == 0x00)
+                continue;
+
+            if (written >= buffer.Length)
+                throw new FormatException("Decimal too long");
+
+            if (b >= '0' && b <= '9')
+            {
+                buffer[written++] = b;
+            }
+            else if (b == '.' && !hasDot)
+            {
+                buffer[written++] = b;
+                hasDot = true;
+            }
+            else
+            {
+                int errOffset = GetCurrentOffset() + i;
+                throw new FormatException($"Invalid char '{(char)b}' (0x{b:X2}) in decimal at offset {errOffset}");
+            }
+        }
+
+        _readOffset += available;
+    }
+
+PARSE:
+    if (written == 0)
+        throw new FormatException("Empty decimal");
+
+    var str = System.Text.Encoding.ASCII.GetString(buffer.Slice(0, written));
+
+    if (format is IsoFieldFormat.DecFrac2 or IsoFieldFormat.DecFrac3)
+    {
         if (decimal.TryParse(str, System.Globalization.NumberStyles.AllowDecimalPoint,
                 System.Globalization.CultureInfo.InvariantCulture, out var result))
             return result;
-
-        if (!hasDot && long.TryParse(str, out var rawValue) && format == IsoFieldFormat.NumDecPad)
-            return rawValue / 100m;
-
-        throw new FormatException($"Failed to parse decimal from '{str}'");
     }
 
+    if (!hasDot && format == IsoFieldFormat.NumDecPad && long.TryParse(str, out var rawVal))
+    {
+        return rawVal / 100m;
+    }
+
+    throw new FormatException($"Failed to parse decimal from '{str}'");
+}
 
     public int ReadInt(IsoFieldFormat format, int maxLength)
     {
