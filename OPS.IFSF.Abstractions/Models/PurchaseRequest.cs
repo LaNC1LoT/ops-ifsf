@@ -155,7 +155,7 @@ public class SaleItem
     [IsoField(6, IsoFieldFormat.DecFrac2, 9, false, '\\')]
     public decimal UnitPrice { get; set; }
 
-    [IsoField(7, IsoFieldFormat.DecFrac2, 12, false, '/')]
+    [IsoField(7, IsoFieldFormat.DecFrac2, 12, false, '\\')]
     public decimal Amount { get; set; }
 }
 

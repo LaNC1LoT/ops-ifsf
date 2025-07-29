@@ -191,21 +191,23 @@ public sealed class Iso8583Generator : IIncrementalGenerator
                                 .Replace("{Format}", pf.Format)
                                 .Replace("{Length}", pf.Length.ToString());
 
-                            if (pf.BeforeDelimiter != ' ')
+                            if (pf.BeforeDelimiter != ' ' && pf.Format != "OPS.IFSF.Abstractions.Attributes.IsoFieldFormat.CharPadWithOutFixedLength")
                             {
                                 var escaped = EscapeCharForCSharp(pf.BeforeDelimiter);
-
                                 nestedWrites.Add(
                                     $"               writer.Write(\"{escaped}\", IsoFieldFormat.CharPad, 1);");
                             }
-
+                            
                             nestedWrites.Add(baseLine);
-                        }
+                            
+                           
 
+                        }
+                        
                         if (nf.ItemSplitter != ' ')
                         {
                             var escaped = EscapeCharForCSharp(nf.ItemSplitter);
-
+                        
                             nestedWrites.Add(
                                 $"              if (i < {fullPropArray}.Count - 1) writer.Write(\"{escaped}\", IsoFieldFormat.CharPad, 1);");
                         }

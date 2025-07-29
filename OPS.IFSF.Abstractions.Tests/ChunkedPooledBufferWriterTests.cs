@@ -163,7 +163,7 @@ public class ChunkedPooledBufferWriterTests
             ProductData = new De63
             {
                 ServiceLevel = 'F',
-                ItemCount = 01,
+                ItemCount = 1,
                 FormatId = '0',
                 Items = [
                      new SaleItem
@@ -183,7 +183,7 @@ public class ChunkedPooledBufferWriterTests
         var actual = writer.ToArray();
         var expectedStr = Encoding.ASCII.GetString(expected);
         var actualStr = Encoding.ASCII.GetString(actual);
-
+    
         Assert.Equal(expectedStr, actualStr);
         Assert.Equal(expected, actual);
     }
