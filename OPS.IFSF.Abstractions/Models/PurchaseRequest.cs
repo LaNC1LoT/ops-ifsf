@@ -146,7 +146,7 @@ public class SaleItem
     [IsoField(3, IsoFieldFormat.NumPad, 1)]
     public int VatCode { get; set; }
 
-    [IsoField(4, IsoFieldFormat.CharPadWithOutFixedLength, 17)]
+    [IsoField(4, IsoFieldFormat.CharPadWithOutFixedLength, 17, false, '\\')]
     public string ProductCode { get; set; }
 
     [IsoField(5, IsoFieldFormat.DecFrac3, 9, false, '\\')]
