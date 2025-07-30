@@ -11,7 +11,7 @@ internal static class Iso8583CodeTemplatesWrite
     using OPS.IFSF.Abstractions.Models;
 
     namespace {{@namespace}};
-    
+
     public partial class {{className}}
     {
         public void WriteTo(ChunkedPooledBufferWriter writer)
@@ -27,29 +27,28 @@ internal static class Iso8583CodeTemplatesWrite
             AsciiHelper.SetLength(messageLen, lenSpan);
         }
 
-    {{nestedMethods}}
+        {{nestedMethods}}
     }
     """;
-    
+
     public const string WriteNestedArrayFieldStart = """
-                                                            for (int i = 0; i < {Prop}.Count; i++)
-                                                            {
-                                                                    var item = {Prop}[i];
-                                                     """;
+            for (int i = 0; i < {Prop}.Count; i++)
+            {
+                var item = {Prop}[i];
+    """;
 
     public const string WriteArrayFieldPart = """
-                                                             writer.Write(item.{Prop}, {Format}, {Length});
-                                              """;
+                writer.Write(item.{Prop}, {Format}, {Length});
+    """;
 
-    public static string WriteNestedArrayFieldEnd (int number, string parentNumber) => $$"""
-                  }
-                  AsciiHelper.SetBitMap({{number}}, bitMapDE{{parentNumber}});
-          """;
-    
-    
-    public static string WriteNestedArrayFieldEndWithOutBitMap (int number, string parentNumber) => $$"""
-                  }
-          """;
+    public static string WriteNestedArrayFieldEnd(int number, string parentNumber) => $$"""
+            }
+            AsciiHelper.SetBitMap({{number}}, bitMapDE{{parentNumber}});
+    """;
+
+    public static string WriteNestedArrayFieldEndWithOutBitMap(int number, string parentNumber) => $$"""
+            }
+    """;
 
     public static string WriteField(int number, string prop, string format, int length, string comment, string parentNumber) => $"""
             // {comment}
@@ -77,34 +76,33 @@ internal static class Iso8583CodeTemplatesWrite
             var spanDE{{number}} = writer.GetSpan(3);
             var startDE{{number}} = writer.TotalLength;
             var bitMapDE{{number}} = writer.GetSpan(8);
-    {{string.Join("\n", nestedWrites)}}
+            {{string.Join("\n", nestedWrites.Select(line => "            " + line.TrimStart()))}}
             var lenDE{{number}} = writer.TotalLength - startDE{{number}};
             AsciiHelper.SetLength(lenDE{{number}}, spanDE{{number}});
         }
     """;
-    
+
     public static string WriteNestedMethodWithOutBitMap(int number, string propClass, IEnumerable<string> nestedWrites) => $$"""
-          private static void WriteDE{{number}}(ChunkedPooledBufferWriter writer, {{propClass}} value)
-          {
-              var spanDE{{number}} = writer.GetSpan(3);
-              var startDE{{number}} = writer.TotalLength;
-      {{string.Join("\n", nestedWrites)}}
-              var lenDE{{number}} = writer.TotalLength - startDE{{number}};
-              AsciiHelper.SetLength(lenDE{{number}}, spanDE{{number}});
-          }
-      """;
+        private static void WriteDE{{number}}(ChunkedPooledBufferWriter writer, {{propClass}} value)
+        {
+            var spanDE{{number}} = writer.GetSpan(3);
+            var startDE{{number}} = writer.TotalLength;
+            {{string.Join("\n", nestedWrites.Select(line => "            " + line.TrimStart()))}}
+            var lenDE{{number}} = writer.TotalLength - startDE{{number}};
+            AsciiHelper.SetLength(lenDE{{number}}, spanDE{{number}});
+        }
+    """;
 
     public static string WriteNestedField(int number, string prop, string format, int length, string comment, string parentNumber) => $"""
             // {comment}
             writer.Write({prop}, {format}, {length});
             AsciiHelper.SetBitMap({number}, bitMapDE{parentNumber});
     """;
-    
-    public static string WriteNestedFieldWithOutBitMap(string prop, string format, int length, string comment) => $"""
-                 // {comment}
-                 writer.Write({prop}, {format}, {length});
-         """;
 
+    public static string WriteNestedFieldWithOutBitMap(string prop, string format, int length, string comment) => $"""
+            // {comment}
+            writer.Write({prop}, {format}, {length});
+    """;
 
     public static string WriteNestedNullableField(int number, string prop, string format, int length, string comment, string parentNumber, string condition, string valueAccess) => $$"""
             if ({{prop}}{{condition}})

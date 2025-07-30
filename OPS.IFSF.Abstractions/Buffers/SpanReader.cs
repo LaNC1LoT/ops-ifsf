@@ -6,6 +6,9 @@ using System.Text;
 
 namespace OPS.IFSF.Abstractions.Buffers
 {
+    /// <summary>
+    /// Структура для последовательного чтения из Span<byte> с поддержкой различных форматов ISO8583.
+    /// </summary>
     public ref struct SpanReader
     {
         private ReadOnlySpan<byte> _span;
@@ -20,6 +23,9 @@ namespace OPS.IFSF.Abstractions.Buffers
         public bool IsEnd => _position >= _span.Length;
         public int Position => _position;
 
+        /// <summary>
+        /// Читает 1 байт.
+        /// </summary>
         public byte ReadByte()
         {
             if (_position >= _span.Length)
@@ -27,6 +33,9 @@ namespace OPS.IFSF.Abstractions.Buffers
             return _span[_position++];
         }
 
+        /// <summary>
+        /// Читает указанное количество байтов.
+        /// </summary>
         public ReadOnlySpan<byte> ReadBytes(int count)
         {
             if (_position + count > _span.Length)
@@ -37,21 +46,25 @@ namespace OPS.IFSF.Abstractions.Buffers
             return result;
         }
 
+        /// <summary>
+        /// Читает 1 байт как символ.
+        /// </summary>
         public char ReadChar()
         {
             return (char)ReadByte();
         }
 
+        /// <summary>
+        /// Заглушка для совместимости с интерфейсом. Не используется.
+        /// </summary>
         public char ReadChar(IsoFieldFormat format, int maxLength)
         {
             return ReadChar();
         }
-        
-        public void SkipToEnd()
-        {
-            _position = _span.Length;
-        }
 
+        /// <summary>
+        /// Читает целое число заданной длины.
+        /// </summary>
         public int ReadInt(int length)
         {
             var bytes = ReadBytes(length);
@@ -63,14 +76,18 @@ namespace OPS.IFSF.Abstractions.Buffers
                     throw new FormatException($"Invalid character '{(char)b}' in integer field.");
             }
 
-            var str = System.Text.Encoding.ASCII.GetString(bytes);
+            var str = Encoding.ASCII.GetString(bytes);
             return int.Parse(str);
         }
+
+        /// <summary>
+        /// Читает байты до разделителя или до максимальной длины.
+        /// </summary>
         private ReadOnlySpan<byte> ReadBytesUntilDelimiter(char delimiter, int maxLength)
         {
             int start = _position;
             int end = start;
-    
+
             while (end < _span.Length && end - start < maxLength)
             {
                 if (_span[end] == (byte)delimiter)
@@ -84,17 +101,24 @@ namespace OPS.IFSF.Abstractions.Buffers
 
             return result;
         }
+
+        /// <summary>
+        /// Чтение decimal до указанного символа-разделителя.
+        /// </summary>
         public decimal ReadDecimal(IsoFieldFormat format, int maxLength, char untilDelimiter)
         {
             var bytes = ReadBytesUntilDelimiter(untilDelimiter, maxLength);
-    
-            var str = System.Text.Encoding.ASCII.GetString(bytes);
+            var str = Encoding.ASCII.GetString(bytes);
+
             if (!decimal.TryParse(str, NumberStyles.Number, CultureInfo.InvariantCulture, out var result))
                 throw new FormatException($"Invalid decimal format: '{str}'");
 
             return result;
         }
 
+        /// <summary>
+        /// Чтение int с форматированием.
+        /// </summary>
         public int ReadInt(IsoFieldFormat format, int maxLength)
         {
             if (format != IsoFieldFormat.NumPad)
@@ -103,29 +127,9 @@ namespace OPS.IFSF.Abstractions.Buffers
             return ReadInt(maxLength);
         }
 
-        public decimal ReadDecimal(int length)
-        {
-            var bytes = ReadBytes(length);
-
-            for (int i = 0; i < bytes.Length; i++)
-            {
-                byte b = bytes[i];
-                if (!((b >= '0' && b <= '9') || b == '.'))
-                    throw new FormatException($"Invalid character '{(char)b}' in decimal field.");
-            }
-
-            var str = System.Text.Encoding.ASCII.GetString(bytes);
-            if (!decimal.TryParse(str, NumberStyles.Number, CultureInfo.InvariantCulture, out var result))
-                throw new FormatException($"Invalid decimal format: '{str}'");
-
-            return result;
-        }
-
-        public decimal ReadDecimal(IsoFieldFormat format, int maxLength)
-        {
-            return ReadDecimal(maxLength);
-        }
-        
+        /// <summary>
+        /// Читает строку до указанного разделителя или до maxLength.
+        /// </summary>
         public string ReadStringUntilDelimiter(char delimiter, int maxLength)
         {
             Span<byte> buffer = stackalloc byte[maxLength];
@@ -140,9 +144,12 @@ namespace OPS.IFSF.Abstractions.Buffers
                 buffer[length++] = b;
             }
 
-            return Encoding.ASCII.GetString(buffer.Slice(0, length)); // ✅ сохраняет '0'
+            return Encoding.ASCII.GetString(buffer.Slice(0, length)); // поддержка нуля внутри строки
         }
-        
+
+        /// <summary>
+        /// Читает строку с учётом формата поля.
+        /// </summary>
         public string ReadString(IsoFieldFormat format, int maxLength, char? fieldDelimiter = null)
         {
             if (format == IsoFieldFormat.CharPadWithOutFixedLength)
